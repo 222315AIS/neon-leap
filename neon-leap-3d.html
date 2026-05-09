@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>NEON LEAP 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,6 +11,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
     width: 100%; height: 100%;
+    height: 100dvh;             /* dynamic vh — accounts for mobile address bar */
     background: #050010;
     overflow: hidden;
     font-family: 'Orbitron', sans-serif;
@@ -42,6 +43,25 @@
     -webkit-backdrop-filter: blur(6px);
     text-align: center;
     padding: 24px;
+  }
+  /* Customize screen: many items, must scroll. Top-align content + allow vertical scroll. */
+  #screen-customize {
+    justify-content: flex-start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;  /* iOS smooth scroll */
+    touch-action: pan-y;                /* override body's touch-action: none */
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+  /* How-to and stage-select screens may also overflow on small phones — same treatment */
+  #screen-how, #screen-select, #screen-pause {
+    justify-content: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;                /* override body's touch-action: none */
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
   .title {
     font-family: 'Monoton', cursive;
@@ -113,7 +133,13 @@
   #hud {
     position: absolute;
     top: 14px; left: 14px; right: 14px;
+    /* respect iPhone notch / dynamic island */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     display: flex; justify-content: space-between; align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
     font-family: 'VT323', monospace;
     font-size: 24px;
     pointer-events: none;
@@ -127,9 +153,23 @@
     text-shadow: 0 0 8px currentColor;
     backdrop-filter: blur(4px);
   }
+  /* Interactive HUD items must receive pointer events even though
+     #hud has pointer-events:none, AND must sit above #cam-area. */
+  .hud-menu, .hud-skip {
+    pointer-events: auto;
+    position: relative;
+    z-index: 12;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hud-menu:active, .hud-skip:active { transform: scale(0.94); }
   .hud-coins { color: #ffd23d; border-color: rgba(255,210,61,0.5); }
   .hud-time  { color: #00f5ff; border-color: rgba(0,245,255,0.5); }
+  .hud-stage { color: #ffffff; border-color: rgba(255,255,255,0.3); }
   .hud-best  { color: #ff2db5; border-color: rgba(255,45,181,0.5); }
+  .hud-hp    { color: #ff66dd; border-color: rgba(255,102,221,0.7); transition: color 0.2s; }
+  .hud-hp.low { color: #ff2222; border-color: rgba(255,34,34,0.9); animation: hpPulse 0.6s infinite; }
+  @keyframes hpPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
   .info {
     font-family: 'VT323', monospace;
@@ -137,6 +177,111 @@
     color: #cfd; line-height: 1.7;
     max-width: 520px;
   }
+
+  .stage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 200px));
+    gap: 14px;
+    max-width: 720px;
+    margin: 16px 0 8px;
+  }
+  .stage-card {
+    background: rgba(20, 0, 40, 0.6);
+    border: 2px solid #ff2db5;
+    padding: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.15s;
+    font-family: 'VT323', monospace;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255,45,181,0.3);
+  }
+  .stage-card:hover:not(.locked) {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 24px rgba(255,45,181,0.6);
+  }
+  .stage-card.locked {
+    border-color: #2a2a3a; color: #555;
+    box-shadow: none; cursor: not-allowed;
+  }
+  .stage-card .num {
+    font-family: 'Monoton', cursive;
+    font-size: 30px; line-height: 1;
+    color: #ff2db5;
+    text-shadow: 0 0 8px #ff2db5;
+  }
+  .stage-card.locked .num { color: #444; text-shadow: none; }
+  .stage-card .nm {
+    font-size: 18px; color: #00f5ff; letter-spacing: 0.15em;
+    margin-top: 4px; text-transform: uppercase;
+    text-shadow: 0 0 6px #00f5ff;
+  }
+  .stage-card.locked .nm { color: #444; text-shadow: none; }
+  .stage-card .desc {
+    font-size: 14px; color: #888; letter-spacing: 0.1em;
+    margin-top: 2px; text-transform: uppercase;
+  }
+  .stage-card .stat { font-size: 16px; color: #aaa; margin-top: 8px; line-height: 1.3; }
+
+  /* CUSTOMIZE screen */
+  #customize-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 160px));
+    gap: 10px;
+    max-width: 700px;
+    margin: 4px auto 0;
+  }
+  .custom-card {
+    background: rgba(20,0,40,0.6);
+    border: 2px solid #ff2db5;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    font-family: 'VT323', monospace;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255,45,181,0.25);
+    transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  .custom-card:hover:not(.locked):not(.equipped) {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 18px rgba(255,45,181,0.5);
+  }
+  .custom-card.locked {
+    border-color: #444; color: #888; box-shadow: none;
+  }
+  .custom-card.locked.affordable {
+    border-color: #ffd23d;
+    box-shadow: 0 0 10px rgba(255,210,61,0.35);
+    color: #fff;
+  }
+  .custom-card.equipped {
+    border-color: #00f5ff;
+    box-shadow: 0 0 14px rgba(0,245,255,0.6);
+    cursor: default;
+  }
+  .custom-card .swatch {
+    width: 56px; height: 56px;
+    margin: 4px auto 6px;
+    border: 2px solid rgba(255,255,255,0.3);
+    background: #ff2db5;
+  }
+  .custom-card .nm {
+    font-size: 16px; color: #00f5ff; letter-spacing: 0.12em;
+    text-transform: uppercase; text-shadow: 0 0 6px #00f5ff;
+  }
+  .custom-card.locked .nm { color: #888; text-shadow: none; }
+  .custom-card.equipped .nm { color: #00f5ff; }
+  .custom-card .cost { font-size: 14px; color: #ffd23d; margin-top: 4px; letter-spacing: 0.1em; }
+  .custom-card.equipped .cost { color: #00f5ff; }
+  .custom-card .desc { font-size: 12px; color: #aaa; margin-top: 4px; letter-spacing: 0.05em; }
+
+  .customize-tab.active {
+    border-color: #00f5ff !important;
+    color: #00f5ff !important;
+    box-shadow: 0 0 12px rgba(0,245,255,0.5) !important;
+  }
+  .stage-card .stat.dim { color: #555; }
   .info kbd {
     background: rgba(255,255,255,0.08);
     border: 1px solid #555; border-radius: 3px;
@@ -238,6 +383,100 @@
   }
   #btn-view.active { background: #ff2db5; color: #050010; }
 
+  /* ============================================================ */
+  /* LANDSCAPE PHONE OPTIMIZATIONS — primary mobile orientation   */
+  /* ============================================================ */
+  @media (orientation: landscape) and (max-height: 600px) {
+    #hud {
+      font-size: 18px;
+      top: 8px; left: 12px; right: 12px;
+    }
+    .hud-item { padding: 2px 10px; }
+
+    /* Joystick zone: take the left half but full height for free placement */
+    #joy-area {
+      width: 45%; height: 80%;
+      bottom: 0; left: 0;
+    }
+
+    /* Bigger jump button + closer to thumb in landscape */
+    #btn-jump {
+      width: 88px; height: 88px;
+      right: max(20px, env(safe-area-inset-right));
+      bottom: 28px;
+      font-size: 32px;
+    }
+    #btn-view {
+      width: 52px; height: 52px;
+      right: max(22px, env(safe-area-inset-right));
+      bottom: 130px;
+      font-size: 16px;
+    }
+
+    /* Title screen — smaller scale in cramped landscape */
+    .title { font-size: clamp(48px, 9vh, 96px); }
+    .subtitle { font-size: 16px; margin-bottom: 16px; }
+    .menu-btn { font-size: 14px; padding: 10px 24px; min-width: 180px; margin: 4px; }
+  }
+
+  /* ============================================================ */
+  /* PORTRAIT MOBILE — show "rotate to landscape" hint            */
+  /* ============================================================ */
+  #rotate-hint {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(5, 0, 16, 0.97);
+    z-index: 9999;
+    pointer-events: auto;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  body.touch.portrait-mode #rotate-hint { display: flex; }
+  #rotate-hint .rotate-icon {
+    font-size: 96px;
+    color: #ff2db5;
+    text-shadow: 0 0 16px #ff2db5, 0 0 40px #ff2db5;
+    margin-bottom: 24px;
+    animation: rotateHintSpin 2.4s ease-in-out infinite;
+  }
+  @keyframes rotateHintSpin {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-90deg); }
+    75% { transform: rotate(-90deg); }
+  }
+  #rotate-hint h2 {
+    font-family: 'Monoton', cursive;
+    font-size: clamp(28px, 8vw, 48px);
+    color: #00f5ff;
+    text-shadow: 0 0 12px #00f5ff;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+  }
+  #rotate-hint p {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: #ffd23d;
+    text-shadow: 0 0 6px #ffd23d;
+    letter-spacing: 0.15em;
+    line-height: 1.5;
+    margin-bottom: 28px;
+    max-width: 320px;
+  }
+  #rotate-hint button {
+    background: transparent;
+    border: 2px solid #ff2db5;
+    color: #ff2db5;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    padding: 10px 22px;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    text-transform: uppercase;
+    box-shadow: 0 0 12px rgba(255,45,181,0.4);
+  }
+
   #toast {
     position: absolute;
     top: 70px; left: 50%; transform: translateX(-50%) translateY(-4px);
@@ -261,6 +500,40 @@
     font-size: 18px; color: #888;
     margin-top: 18px; line-height: 1.6;
   }
+  #stage-banner {
+    position: fixed;
+    top: 40%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ff2db5;
+    font-family: 'Monoton', cursive;
+    font-size: clamp(56px, 14vw, 144px);
+    text-shadow: 0 0 6px #ff2db5, 0 0 24px #ff2db5, 0 0 60px #00f5ff;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 25;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 0.95;
+  }
+  #stage-banner small {
+    display: block;
+    font-size: 0.28em;
+    color: #00f5ff;
+    text-shadow: 0 0 8px #00f5ff;
+    letter-spacing: 0.4em;
+    margin-top: 10px;
+  }
+  #stage-banner.show {
+    animation: bannerFlash 1.8s ease-out forwards;
+  }
+  @keyframes bannerFlash {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+    18%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+  }
+
   .hidden { display: none !important; }
 
   /* loading */
@@ -285,11 +558,22 @@
 
 <div id="loading">LOADING…</div>
 
+<div id="rotate-hint">
+  <div class="rotate-icon">📱</div>
+  <h2>ROTATE</h2>
+  <p>Best played in landscape.<br>Turn your phone sideways.</p>
+  <button id="rotate-hint-dismiss">PLAY ANYWAY</button>
+</div>
+
 <div id="ui">
   <div id="hud" class="hidden">
     <span class="hud-item hud-coins">◆ <span id="hud-coin">0</span>/<span id="hud-coin-total">0</span></span>
+    <span class="hud-item hud-hp" id="hud-hp-wrap">♥ <span id="hud-hp">100</span></span>
     <span class="hud-item hud-time">▶ <span id="hud-time">0.0</span></span>
+    <span class="hud-item hud-stage" id="hud-stage">STAGE 1</span>
     <span class="hud-item hud-best">★ <span id="hud-best">—</span></span>
+    <span class="hud-item hud-menu" data-action="pause" style="cursor:pointer;color:#00f5ff;border-color:rgba(0,245,255,0.7);text-shadow:0 0 8px #00f5ff">≡ MENU</span>
+    <span class="hud-item hud-skip" data-action="force-win" style="cursor:pointer;color:#ff2db5;border-color:rgba(255,45,181,0.7);text-shadow:0 0 8px #ff2db5">⏭ SKIP</span>
   </div>
 
   <!-- TITLE -->
@@ -297,9 +581,12 @@
     <h1 class="title">NEON<br>LEAP<small>3D</small></h1>
     <div class="subtitle">A SYNTHWAVE 3D PLATFORMER</div>
     <button class="menu-btn" data-action="play">PLAY</button>
+    <button class="menu-btn alt" data-action="select">STAGE SELECT</button>
+    <button class="menu-btn alt" data-action="customize">CUSTOMIZE</button>
     <button class="menu-btn alt" data-action="how">HOW TO PLAY</button>
     <button class="menu-btn alt" data-action="reset">RESET BEST</button>
     <div class="small">— RUN, JUMP, CLIMB TO THE PORTAL —</div>
+    <div style="margin-top:18px;font-family:VT323,monospace;font-size:14px;color:#00f5ff;letter-spacing:0.15em;opacity:0.7">BUILD v37 · MENU-CLICKABLE</div>
   </div>
 
   <!-- HOW TO PLAY -->
@@ -319,10 +606,36 @@
       PINCH — ZOOM · ◇ BUTTON — CYCLE VIEW
       <br><br>
       <div style="color:#ffd23d">◆ COLLECT GOLD COINS</div>
+      <div style="color:#ff3366">▲ AVOID RED SPIKES (later stages)</div>
       <div style="color:#00f5ff">◇ REACH THE PORTAL</div>
-      <div style="color:#888">FALLING OFF RESPAWNS YOU</div>
+      <div style="color:#888">FALLING OFF RESPAWNS YOU<br>BEAT A STAGE TO UNLOCK THE NEXT</div>
     </div>
     <button class="menu-btn alt" data-action="title" style="margin-top: 28px">BACK</button>
+  </div>
+
+  <!-- STAGE SELECT -->
+  <div id="screen-select" class="screen hidden">
+    <h2 class="title" style="font-size: clamp(28px, 5vw, 52px);">SELECT STAGE</h2>
+    <div class="stage-grid" id="stage-grid"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px">
+      <button class="menu-btn alt" data-action="title">BACK</button>
+    </div>
+  </div>
+
+  <!-- CUSTOMIZE -->
+  <div id="screen-customize" class="screen hidden">
+    <h2 class="title" style="font-size: clamp(28px, 5vw, 52px);">CUSTOMIZE</h2>
+    <div id="customize-coins" style="font-family:Orbitron,monospace;color:#ffd23d;font-size:18px;letter-spacing:0.15em;margin-bottom:8px">◆ 0</div>
+    <div id="customize-tabs" style="display:flex;gap:6px;justify-content:center;margin-bottom:12px;flex-wrap:wrap">
+      <button class="menu-btn alt customize-tab active" data-action="customize-tab" data-tab="colors">COLOR</button>
+      <button class="menu-btn alt customize-tab"        data-action="customize-tab" data-tab="shapes">SHAPE</button>
+      <button class="menu-btn alt customize-tab"        data-action="customize-tab" data-tab="stats">STATS</button>
+    </div>
+    <div id="customize-grid"></div>
+    <div id="customize-msg" style="min-height:18px;color:#ff2db5;font-family:VT323,monospace;font-size:14px;margin-top:6px;letter-spacing:0.1em"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px">
+      <button class="menu-btn alt" data-action="title">BACK</button>
+    </div>
   </div>
 
   <!-- PAUSE -->
@@ -335,11 +648,12 @@
 
   <!-- WIN -->
   <div id="screen-win" class="screen hidden">
-    <h2 class="title" style="font-size: clamp(36px, 7vw, 72px); color:#00f5ff; text-shadow: 0 0 4px #00f5ff, 0 0 20px #00f5ff, 0 0 50px #00f5ff;">PORTAL REACHED</h2>
+    <h2 id="win-title" class="title" style="font-size: clamp(36px, 7vw, 72px); color:#00f5ff; text-shadow: 0 0 4px #00f5ff, 0 0 20px #00f5ff, 0 0 50px #00f5ff;">STAGE CLEAR</h2>
     <div class="info" id="win-stats" style="color:#fff"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:24px">
-      <button class="menu-btn" data-action="restart">PLAY AGAIN</button>
-      <button class="menu-btn alt" data-action="quit">QUIT</button>
+      <button id="btn-next-stage" class="menu-btn" data-action="next-stage">NEXT STAGE</button>
+      <button class="menu-btn alt" data-action="restart">REPLAY</button>
+      <button class="menu-btn alt" data-action="quit">MENU</button>
     </div>
   </div>
 
@@ -354,6 +668,7 @@
   </div>
 
   <div id="toast"></div>
+  <div id="stage-banner"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -383,8 +698,8 @@ const CAM_PRESETS = [
   { name: 'CLOSE',    distance: 6,  pitch: 0.25 },
   { name: 'OVERHEAD', distance: 14, pitch: 1.15 },
 ];
-const CAM_PITCH_MIN = -0.15;   // ~ -8° (slight look-up)
-const CAM_PITCH_MAX = 1.35;    // ~ 77° (almost top-down)
+const CAM_PITCH_MIN = -1.45;   // ~ -83° (look way up)
+const CAM_PITCH_MAX = 1.45;    // ~  83° (almost straight down)
 const CAM_DIST_MIN = 4;
 const CAM_DIST_MAX = 22;
 
@@ -397,68 +712,682 @@ const COL_GOAL = 0x00f5ff;
 const COL_GROUND = 0x180038;
 
 // ============================================================
-// LEVEL: a spiral platform tower
+// LEVELS: a series of stages, each harder than the last
 // Each platform: { x, y, z, w, h, d }
+// Spikes: { x, y, z } - red death pillars (touch = die)
 // ============================================================
-const LEVEL = {
-  spawn: { x: 0, y: 1.5, z: 8 },
-  platforms: [
-    // 0. spawn ground (large)
-    { x: 0,   y: -0.5, z: 8,   w: 18, h: 1, d: 12 },
+const STAGES = [
+  // ========== STAGE 1: AWAKENING — generous, no hazards ==========
+  {
+    name: 'AWAKENING',
+    description: 'A GENTLE CLIMB',
+    spawn: { x: 0, y: 1.5, z: 8 },
+    platforms: [
+      // === Spawn ground — appears as ONE continuous 18×12 platform, but has
+      // an invisible 1.5×1.5 collision hole flush in the BACK-LEFT CORNER.
+      // The hole touches both the left edge (x=-9) AND the back edge (z=14),
+      // so the player has to walk all the way to that exact corner to fall in.
+      // Visual is unbroken (no seams, no gap) — the visible mesh is a single
+      // 18×12 slab; only the collision is donut-shaped. ===
+      // Visual-only: full 18×12 slab, looks like a normal platform
+      { x: 0, y: -0.5, z: 8, w: 18, h: 1, d: 12, visualOnly: true },
+      // Collision-only donut around a 1.5×1.5 hole at (x: -9..-7.5, z: 12.5..14)
+      { x: 0.75,  y: -0.5, z: 8,    w: 16.5, h: 1, d: 12,   collisionOnly: true }, // right portion (most of platform)
+      { x: -8.25, y: -0.5, z: 7.25, w: 1.5,  h: 1, d: 10.5, collisionOnly: true }, // left strip in front of hole
+      // === Spiral up to goal (unchanged) ===
+      { x: 0,    y: 1.5,  z: -1,   w: 6,  h: 1, d: 4 },
+      { x: 8,    y: 3.5,  z: -3,   w: 4,  h: 1, d: 4 },
+      { x: 11,   y: 5.5,  z: -10,  w: 4,  h: 1, d: 4 },
+      { x: 4,    y: 7.5,  z: -15,  w: 4,  h: 1, d: 4 },
+      { x: -4,   y: 9.5,  z: -15,  w: 4,  h: 1, d: 4 },
+      { x: -11,  y: 11.5, z: -10,  w: 4,  h: 1, d: 4 },
+      { x: -8,   y: 13.5, z: -3,   w: 4,  h: 1, d: 4 },
+      { x: 0,    y: 15.5, z: -5,   w: 5,  h: 1, d: 5 },
+      { x: 0,    y: 17.5, z: -12,  w: 4,  h: 1, d: 4 },   // mid-spiral (was goal platform)
+      // === EXTENSION ===
+      { x: 6,    y: 19.5, z: -10,  w: 4,  h: 1, d: 4 },
+      { x: 8,    y: 21.5, z: -3,   w: 4,  h: 1, d: 4 },
+      { x: 2,    y: 23.5, z: 2,    w: 4,  h: 1, d: 4 },
+      { x: -4,   y: 25.5, z: -1,   w: 4,  h: 1, d: 4 },
+      { x: 0,    y: 27.5, z: -8,   w: 7,  h: 1, d: 7 },   // NEW goal platform
+      // === Hidden chamber floor INSIDE the spawn platform ===
+      // Sits 2.5m below the corner hole. Dimensions exactly match the hole
+      // (1.5 × 1.5) and position is exactly under the hole — so the ONLY way
+      // to land on it is a clean vertical drop through the hole. Jumping off
+      // the side of the spawn platform drops you to your death; you can't reach
+      // the portal except by clipping through the platform.
+      { x: -8.25, y: -3, z: 13.25, w: 1.5, h: 1, d: 1.5, collisionOnly: true },
+    ],
+    warps: [
+      // Warp portal lives INSIDE the hollow spawn platform, in the chamber
+      // beneath the corner hole.
+      { x: -8.25, y: -1.5, z: 13.25, target: 8 },
+    ],
+    coins: [
+      { x: 0,   y: 3.0,  z: -1  },
+      { x: 8,   y: 5.0,  z: -3  },
+      { x: 11,  y: 7.0,  z: -10 },
+      { x: 4,   y: 9.0,  z: -15 },
+      { x: -4,  y: 11.0, z: -15 },
+      { x: -11, y: 13.0, z: -10 },
+      { x: -8,  y: 15.0, z: -3  },
+      { x: 0,   y: 17.0, z: -5  },
+      { x: -5,  y: 0.6,  z: 8   },
+      { x: 5,   y: 0.6,  z: 8   },
+      { x: 0,   y: 0.6,  z: 12  },
+      // extension coins
+      { x: 6,   y: 21,   z: -10 },
+      { x: 8,   y: 23,   z: -3  },
+      { x: 2,   y: 25,   z: 2   },
+      { x: -4,  y: 27,   z: -1  },
+      { x: 0,   y: 29,   z: -8  },
+    ],
+    goal: { x: 0, y: 31.5, z: -8 },
+    spikes: [],
+  },
 
-    // 1. first step
-    { x: 0,   y: 1.5,  z: -1,  w: 6,  h: 1, d: 4 },
+  // ========== STAGE 2: PULSE — linear forward gauntlet ==========
+  {
+    name: 'PULSE',
+    description: 'LINEAR GAUNTLET',
+    spawn: { x: 0, y: 1.5, z: 14 },
+    platforms: [
+      { x: 0,    y: -0.5, z: 14,  w: 12, h: 1, d: 8 },
+      { x: -1.5, y: 1.5,  z: 10,  w: 3,  h: 1, d: 3 },
+      { x: 1.5,  y: 3.5,  z: 6,   w: 3,  h: 1, d: 3 },
+      { x: -1.5, y: 5.5,  z: 2,   w: 3,  h: 1, d: 3 },
+      { x: 1.5,  y: 7.5,  z: -2,  w: 3,  h: 1, d: 3 },
+      { x: -1.5, y: 9.5,  z: -6,  w: 3,  h: 1, d: 3 },
+      { x: 1.5,  y: 11.5, z: -10, w: 3,  h: 1, d: 3 },
+      { x: 0,    y: 13.5, z: -14, w: 4,  h: 1, d: 4 },   // mid (was goal)
+      // === EXTENSION ===
+      { x: -1.5, y: 15.5, z: -18, w: 3,  h: 1, d: 3 },
+      { x: 1.5,  y: 17.5, z: -22, w: 3,  h: 1, d: 3 },
+      { x: -1.5, y: 19.5, z: -26, w: 3,  h: 1, d: 3 },
+      { x: 0,    y: 21.5, z: -30, w: 5,  h: 1, d: 5 },   // NEW goal platform
+    ],
+    coins: [
+      { x: -1.5, y: 3,    z: 10  },
+      { x: 1.5,  y: 5,    z: 6   },
+      { x: -1.5, y: 7,    z: 2   },
+      { x: 1.5,  y: 9,    z: -2  },
+      { x: -1.5, y: 11,   z: -6  },
+      { x: 1.5,  y: 13,   z: -10 },
+      { x: 0,    y: 15,   z: -14 },
+      { x: -4,   y: 0.6,  z: 13  },
+      { x: 4,    y: 0.6,  z: 13  },
+      { x: 0,    y: 0.6,  z: 16  },
+      // extension coins
+      { x: -1.5, y: 17,   z: -18 },
+      { x: 1.5,  y: 19,   z: -22 },
+      { x: -1.5, y: 21,   z: -26 },
+      { x: 0,    y: 23,   z: -30 },
+    ],
+    goal: { x: 0, y: 25.5, z: -30 },
+    spikes: [
+      { x: 0, y: 5.5,  z: 4  },
+      { x: 0, y: 9.5,  z: -4 },
+      { x: 0, y: 17.5, z: -20 },
+      { x: 0, y: 21.5, z: -28 },
+    ],
+  },
 
-    // 2. spiral start - east side
-    { x: 8,   y: 3.5,  z: -3,  w: 4,  h: 1, d: 4 },
+  // ========== STAGE 3: VORTEX — vertical spire, climb straight up ==========
+  {
+    name: 'VORTEX',
+    description: 'VERTICAL SPIRE',
+    spawn: { x: 0, y: 1.5, z: 5 },
+    platforms: [
+      { x: 0,    y: -0.5, z: 0,  w: 14, h: 1, d: 14 },  // spawn ground
+      // tight zigzag spire going straight up
+      { x: -3,   y: 1.5,  z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 3,    y: 3.5,  z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 0,    y: 5.5,  z: 3,  w: 2.5, h: 1, d: 2.5 },
+      { x: -3,   y: 7.5,  z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 3,    y: 9.5,  z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 0,    y: 11.5, z: -3, w: 2.5, h: 1, d: 2.5 },
+      { x: -3,   y: 13.5, z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 3,    y: 15.5, z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 0,    y: 17.5, z: 0,  w: 3,   h: 1, d: 3   },  // mid (was goal)
+      // === EXTENSION ===
+      { x: -3,   y: 19.5, z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 3,    y: 21.5, z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 0,    y: 23.5, z: 3,  w: 2.5, h: 1, d: 2.5 },
+      { x: -3,   y: 25.5, z: 0,  w: 2.5, h: 1, d: 2.5 },
+      { x: 0,    y: 27.5, z: 0,  w: 5,   h: 1, d: 5   },  // NEW goal platform
+    ],
+    coins: [
+      { x: -3, y: 3,    z: 0  },
+      { x: 3,  y: 5,    z: 0  },
+      { x: 0,  y: 7,    z: 3  },
+      { x: -3, y: 9,    z: 0  },
+      { x: 3,  y: 11,   z: 0  },
+      { x: 0,  y: 13,   z: -3 },
+      { x: -3, y: 15,   z: 0  },
+      { x: 3,  y: 17,   z: 0  },
+      { x: -5, y: 0.6,  z: 5  },
+      { x: 5,  y: 0.6,  z: 5  },
+      { x: 0,  y: 0.6,  z: -5 },
+      // extension coins
+      { x: -3, y: 21,   z: 0  },
+      { x: 3,  y: 23,   z: 0  },
+      { x: 0,  y: 25,   z: 3  },
+      { x: -3, y: 27,   z: 0  },
+      { x: 0,  y: 29,   z: 0  },
+    ],
+    goal: { x: 0, y: 31.5, z: 0 },
+    spikes: [
+      { x: 0, y: 2.5,  z: 0 },
+      { x: 0, y: 6.5,  z: 0 },
+      { x: 0, y: 10.5, z: 0 },
+      { x: 0, y: 14.5, z: 0 },
+      { x: 0, y: 20.5, z: 0 },
+      { x: 0, y: 24.5, z: 0 },
+    ],
+  },
 
-    // 3. north-east
-    { x: 11,  y: 5.5,  z: -10, w: 4,  h: 1, d: 4 },
+  // ============================================================
+  // STAGE 4 — NEXUS (moving platform bridges)
+  // ============================================================
+  {
+    name: 'NEXUS',
+    description: 'MOVING BRIDGES',
+    spawn: { x: 0, y: 1.5, z: 12 },
+    platforms: [
+      { x: 0, y: -0.5, z: 12,  w: 8, h: 1, d: 4 },   // spawn ground
+      { x: 0, y: 1.5,  z: 6,   w: 3, h: 1, d: 3 },   // first stop
+      { x: 0, y: 2.5,  z: -6,  w: 3, h: 1, d: 3 },   // middle stop
+      { x: 0, y: 4,    z: -16, w: 4, h: 1, d: 4 },   // mid (was goal)
+      // === EXTENSION ===
+      { x: -3, y: 5.5, z: -22, w: 3, h: 1, d: 3 },
+      { x: 3,  y: 7,   z: -28, w: 3, h: 1, d: 3 },
+      { x: 0,  y: 9,   z: -38, w: 6, h: 1, d: 5 },   // NEW goal area
+    ],
+    movers: [
+      { x: 0, y: 2,    z: 0,   w: 3, h: 0.6, d: 3, axis: 'x', range: 2,   speed: 1.0 },
+      { x: 0, y: 3.5,  z: -11, w: 3, h: 0.6, d: 3, axis: 'x', range: 3,   speed: 1.4 },
+      // extension movers
+      { x: 0, y: 5.5,  z: -25, w: 3, h: 0.6, d: 3, axis: 'x', range: 4,   speed: 1.6 },
+      { x: 0, y: 8,    z: -33, w: 3, h: 0.6, d: 3, axis: 'x', range: 4,   speed: 1.8 },
+    ],
+    coins: [
+      { x: 0,  y: 0.6, z: 12 },
+      { x: 0,  y: 3.0, z: 6  },
+      { x: 0,  y: 4.0, z: -6 },
+      { x: 0,  y: 5.5, z: -16 },
+      { x: -2, y: 5.5, z: -16 },
+      { x: 2,  y: 5.5, z: -16 },
+      // extension coins
+      { x: -3, y: 7,   z: -22 },
+      { x: 3,  y: 8.5, z: -28 },
+      { x: 0,  y: 10.5, z: -38 },
+    ],
+    goal: { x: 0, y: 13.0, z: -38 },
+  },
 
-    // 4. north
-    { x: 4,   y: 7.5,  z: -15, w: 4,  h: 1, d: 4 },
+  // ============================================================
+  // STAGE 5 — BOUNCE (trampoline tower)
+  // ============================================================
+  {
+    name: 'BOUNCE',
+    description: 'TRAMPOLINE TOWER',
+    spawn: { x: 0, y: 1.5, z: 4 },
+    platforms: [
+      { x: 0,  y: -0.5, z: 0,   w: 14, h: 1, d: 12 },  // spawn ground
+      { x: -3, y: 2.5,  z: -2,  w: 3,  h: 1, d: 3 },   // P1
+      { x: 2,  y: 6,    z: -2,  w: 3,  h: 1, d: 3 },   // P2
+      { x: -2, y: 10,   z: 0,   w: 3,  h: 1, d: 3 },   // P3
+      { x: 0,  y: 14,   z: 1,   w: 3,  h: 1, d: 3 },   // mid (was goal)
+      // === EXTENSION ===
+      { x: 3,  y: 18,   z: 0,   w: 3,  h: 1, d: 3 },   // P4
+      { x: -3, y: 22,   z: 2,   w: 3,  h: 1, d: 3 },   // P5
+      { x: 0,  y: 26,   z: -2,  w: 5,  h: 1, d: 5 },   // NEW goal platform
+    ],
+    bouncers: [
+      { x: 0,  y: 0.2,  z: -3, w: 2.5, h: 0.4, d: 2.5, power: 16 },  // ground bouncer
+      { x: -3, y: 3.2,  z: -2, w: 2,   h: 0.4, d: 2,   power: 16 },  // on P1
+      { x: 2,  y: 6.7,  z: -2, w: 2,   h: 0.4, d: 2,   power: 16 },  // on P2
+      { x: -2, y: 10.7, z: 0,  w: 2,   h: 0.4, d: 2,   power: 16 },  // on P3
+      // extension bouncers
+      { x: 0,  y: 14.7, z: 1,  w: 2,   h: 0.4, d: 2,   power: 16 },  // on mid
+      { x: 3,  y: 18.7, z: 0,  w: 2,   h: 0.4, d: 2,   power: 16 },  // on P4
+      { x: -3, y: 22.7, z: 2,  w: 2,   h: 0.4, d: 2,   power: 16 },  // on P5
+    ],
+    coins: [
+      { x: 0,  y: 0.6,  z: 0  },
+      { x: -3, y: 4.5,  z: -2 },
+      { x: 2,  y: 8,    z: -2 },
+      { x: -2, y: 12,   z: 0  },
+      { x: 0,  y: 15.5, z: 1  },
+      { x: -2, y: 15.5, z: 1  },
+      { x: 2,  y: 15.5, z: 1  },
+      // extension coins
+      { x: 3,  y: 19.5, z: 0  },
+      { x: -3, y: 23.5, z: 2  },
+      { x: 0,  y: 27.5, z: -2 },
+    ],
+    goal: { x: 0, y: 30.0, z: -2 },
+  },
 
-    // 5. north-west
-    { x: -4,  y: 9.5,  z: -15, w: 4,  h: 1, d: 4 },
+  // ============================================================
+  // STAGE 6 — SHIFT (movers + crumbler trap)
+  // Harder than VORTEX: tight timing across multiple movers,
+  // narrow rest pads, ends with a crumbling rush.
+  // ============================================================
+  {
+    name: 'SHIFT',
+    description: 'TIMING REQUIRED',
+    spawn: { x: 0, y: 1.5, z: 14 },
+    platforms: [
+      { x: 0,  y: -0.5, z: 14, w: 6, h: 1, d: 4 },     // spawn
+      { x: 0,  y: 2.5,  z: 4,  w: 2, h: 1, d: 2 },     // rest pad 1 (small)
+      { x: 4,  y: 5.5,  z: -3, w: 2, h: 1, d: 2 },     // rest pad 2 (small)
+      { x: -3, y: 8.5,  z: -10, w: 2, h: 1, d: 2 },    // rest pad 3
+      { x: 0,  y: 12.5, z: -20, w: 4, h: 1, d: 4 },    // mid (was goal)
+      // === EXTENSION ===
+      { x: 4,  y: 14.5, z: -25, w: 2, h: 1, d: 2 },    // narrow pad 4
+      { x: -3, y: 16.5, z: -32, w: 2, h: 1, d: 2 },    // narrow pad 5
+      { x: 0,  y: 19.5, z: -40, w: 5, h: 1, d: 5 },    // NEW goal platform
+    ],
+    movers: [
+      { x: 0,  y: 1.5, z: 9,   w: 2.5, h: 0.6, d: 2.5, axis: 'x', range: 4, speed: 1.6 },
+      { x: 4,  y: 4.5, z: -1,  w: 2.5, h: 0.6, d: 2.5, axis: 'z', range: 4, speed: 1.5 },
+      { x: 0,  y: 7.5, z: -7,  w: 2.5, h: 0.6, d: 2.5, axis: 'x', range: 5, speed: 2.2 }, // FAST
+      { x: -3, y: 10.5, z: -15, w: 2.5, h: 0.6, d: 2.5, axis: 'z', range: 4, speed: 1.8 },
+      // extension movers
+      { x: 0,  y: 13.5, z: -23, w: 2.5, h: 0.6, d: 2.5, axis: 'x', range: 4, speed: 2.0 },
+      { x: 0,  y: 17.5, z: -36, w: 2.5, h: 0.6, d: 2.5, axis: 'x', range: 5, speed: 2.4 }, // FAST
+    ],
+    crumblers: [
+      { x: 0,  y: 11.5, z: -18, w: 2, h: 1, d: 2, delay: 0.5 },  // rush platform near old goal
+      { x: 0,  y: 15.5, z: -28, w: 2, h: 1, d: 2, delay: 0.5 },
+      { x: 0,  y: 18.5, z: -36, w: 2, h: 1, d: 2, delay: 0.45 },
+    ],
+    mobs: [
+      { type: 'thrower', x: 6, y: 7, z: -5,  range: 12 }, // turret on the side, fires at mid-stage
+      { type: 'thrower', x: -6, y: 16, z: -30, range: 14 }, // extension thrower
+    ],
+    coins: [
+      { x: 0,  y: 0.6,  z: 14 },
+      { x: 0,  y: 3.5,  z: 9  },
+      { x: 0,  y: 4,    z: 4  },
+      { x: 4,  y: 7,    z: -3 },
+      { x: 0,  y: 9,    z: -7 },
+      { x: -3, y: 10,   z: -10 },
+      { x: 0,  y: 13.5, z: -20 },
+      // extension coins
+      { x: 4,  y: 16,   z: -25 },
+      { x: -3, y: 18,   z: -32 },
+      { x: 0,  y: 21,   z: -40 },
+    ],
+    goal: { x: 0, y: 23.5, z: -40 },
+    spikes: [
+      { x: 2,  y: 2.5, z: 5 },
+      { x: -2, y: 5.5, z: -2 },
+      { x: 3,  y: 8.5, z: -8 },
+      // extension spikes
+      { x: 4,  y: 12.5, z: -22 },
+      { x: -3, y: 14.5, z: -29 },
+    ],
+  },
 
-    // 6. west
-    { x: -11, y: 11.5, z: -10, w: 4,  h: 1, d: 4 },
+  // ============================================================
+  // STAGE 7 — REBOUND (chained bouncers + moving targets)
+  // Harder than VORTEX: must aim each bounce, landing on movers,
+  // spikes punish overshoots.
+  // ============================================================
+  {
+    name: 'REBOUND',
+    description: 'AIM YOUR BOUNCE',
+    spawn: { x: 0, y: 1.5, z: 8 },
+    platforms: [
+      { x: 0,  y: -0.5, z: 6,  w: 8, h: 1, d: 6 },     // spawn ground
+      { x: -3, y: 3,    z: 0,  w: 2, h: 1, d: 2 },     // landing 1 (small!)
+      { x: 3,  y: 7,    z: -3, w: 2, h: 1, d: 2 },     // landing 2
+      { x: -3, y: 11,   z: -7, w: 2, h: 1, d: 2 },     // landing 3
+      { x: 0,  y: 15,   z: -12, w: 3, h: 1, d: 3 },    // mid (was goal)
+      // === EXTENSION ===
+      { x: -3, y: 19,   z: -16, w: 2, h: 1, d: 2 },    // landing 4
+      { x: 3,  y: 23,   z: -20, w: 2, h: 1, d: 2 },    // landing 5
+      { x: 0,  y: 27,   z: -26, w: 5, h: 1, d: 5 },    // NEW goal platform
+    ],
+    bouncers: [
+      { x: 0,  y: 0.2,  z: 0,  w: 2.5, h: 0.4, d: 2.5, power: 14 },  // ground launch
+      { x: -3, y: 3.7,  z: 0,  w: 1.6, h: 0.4, d: 1.6, power: 14 },
+      { x: 3,  y: 7.7,  z: -3, w: 1.6, h: 0.4, d: 1.6, power: 14 },
+      { x: -3, y: 11.7, z: -7, w: 1.6, h: 0.4, d: 1.6, power: 14 },
+      // extension bouncers
+      { x: 0,  y: 15.7, z: -12, w: 1.6, h: 0.4, d: 1.6, power: 14 },
+      { x: -3, y: 19.7, z: -16, w: 1.6, h: 0.4, d: 1.6, power: 14 },
+      { x: 3,  y: 23.7, z: -20, w: 1.6, h: 0.4, d: 1.6, power: 14 },
+    ],
+    movers: [
+      { x: 0,  y: 13, z: -10, w: 2.5, h: 0.6, d: 2.5, axis: 'x', range: 3, speed: 1.6 },
+      // extension mover bridge to goal
+      { x: 0,  y: 25, z: -23, w: 2.5, h: 0.6, d: 2.5, axis: 'x', range: 3, speed: 2.0 },
+    ],
+    mobs: [
+      { type: 'thrower', x: -5, y: 13, z: -10, range: 14 },
+      { type: 'thrower', x: 5,  y: 23, z: -20, range: 16 }, // extension sniper
+    ],
+    coins: [
+      { x: 0,  y: 0.6,  z: 6  },
+      { x: -3, y: 5,    z: 0  },
+      { x: 3,  y: 9,    z: -3 },
+      { x: -3, y: 13,   z: -7 },
+      { x: 0,  y: 14,   z: -10 },
+      { x: 0,  y: 16,   z: -12 },
+      { x: -2, y: 16,   z: -12 },
+      { x: 2,  y: 16,   z: -12 },
+      // extension coins
+      { x: -3, y: 21,   z: -16 },
+      { x: 3,  y: 25,   z: -20 },
+      { x: 0,  y: 29,   z: -26 },
+    ],
+    goal: { x: 0, y: 31.0, z: -26 },
+    spikes: [
+      { x: -3, y: 3,  z: 3 },
+      { x: 3,  y: 7,  z: 0 },
+      { x: -3, y: 11, z: -4 },
+      { x: 0,  y: 13, z: -7 },
+      // extension spikes
+      { x: -3, y: 19, z: -13 },
+      { x: 3,  y: 23, z: -17 },
+    ],
+  },
 
-    // 7. south-west
-    { x: -8,  y: 13.5, z: -3,  w: 4,  h: 1, d: 4 },
+  // ============================================================
+  // STAGE 8 — COLLAPSE (crumbler path + movers + 1 bouncer)
+  // Hardest: must keep moving, no stopping. Combines all 3 mechanics.
+  // Path: forward crumbler row → checkpoint → mover bridge → bouncer up
+  //       → upper crumbler row → goal.
+  // ============================================================
+  {
+    name: 'COLLAPSE',
+    description: 'NEVER STOP MOVING',
+    spawn: { x: 0, y: 1.5, z: 14 },
+    platforms: [
+      { x: 0,  y: -0.5, z: 14, w: 6, h: 1, d: 4 },     // spawn
+      { x: 0,  y: 0,    z: -3, w: 3, h: 1, d: 3 },     // mid checkpoint
+      { x: 0,  y: 0,    z: -13, w: 3, h: 1, d: 3 },    // post-mover landing (holds bouncer)
+      { x: 0,  y: 5,    z: -16, w: 3, h: 1, d: 3 },    // upper landing (after bounce)
+      { x: 0,  y: 5,    z: -27, w: 3, h: 1, d: 3 },    // mid (was goal)
+      // === EXTENSION ===
+      { x: 0,  y: 5,    z: -36, w: 3, h: 1, d: 3 },    // post-second-mover landing
+      { x: 0,  y: 9,    z: -39, w: 3, h: 1, d: 3 },    // upper-2 landing (after second bounce)
+      { x: 0,  y: 9,    z: -49, w: 5, h: 1, d: 5 },    // NEW goal platform
+    ],
+    crumblers: [
+      // forward crumbler row at ground level (must keep moving!)
+      { x: 0, y: 0, z: 9,  w: 2, h: 1, d: 2, delay: 0.6 },
+      { x: 0, y: 0, z: 5,  w: 2, h: 1, d: 2, delay: 0.6 },
+      { x: 0, y: 0, z: 1,  w: 2, h: 1, d: 2, delay: 0.6 },
+      // upper crumbler row near old goal
+      { x: 0, y: 5, z: -20, w: 2, h: 1, d: 2, delay: 0.5 },
+      { x: 0, y: 5, z: -23, w: 2, h: 1, d: 2, delay: 0.5 },
+      // EXTENSION crumblers
+      { x: 0, y: 9, z: -42, w: 2, h: 1, d: 2, delay: 0.45 },
+      { x: 0, y: 9, z: -45, w: 2, h: 1, d: 2, delay: 0.45 },
+    ],
+    movers: [
+      { x: 0, y: 0, z: -8, w: 2, h: 0.6, d: 2, axis: 'x', range: 4, speed: 2.0 },
+      // EXTENSION mover (between old and new goal)
+      { x: 0, y: 5, z: -32, w: 2, h: 0.6, d: 2, axis: 'x', range: 4, speed: 2.4 },
+    ],
+    bouncers: [
+      { x: 0, y: 0.7, z: -13, w: 2.5, h: 0.4, d: 2.5, power: 16 },
+      // EXTENSION bouncer (launches to upper-2 level)
+      { x: 0, y: 5.7, z: -36, w: 2.5, h: 0.4, d: 2.5, power: 16 },
+    ],
+    mobs: [
+      { type: 'thrower', x: 5,  y: 4,  z: 0,   range: 14 },
+      { type: 'thrower', x: -5, y: 9,  z: -19, range: 14 },
+      { type: 'thrower', x: 5,  y: 13, z: -42, range: 16 }, // extension thrower
+    ],
+    coins: [
+      { x: 0, y: 0.6,  z: 14 },
+      { x: 0, y: 1.5,  z: 9  },
+      { x: 0, y: 1.5,  z: 5  },
+      { x: 0, y: 1.5,  z: 1  },
+      { x: 0, y: 1.5,  z: -3 },
+      { x: 0, y: 1.5,  z: -8 },
+      { x: 0, y: 6.5,  z: -16 },
+      { x: 0, y: 6.5,  z: -20 },
+      { x: 0, y: 6.5,  z: -23 },
+      { x: 0, y: 6.5,  z: -27 },
+      // EXTENSION coins
+      { x: 0, y: 6.5,  z: -32 },
+      { x: 0, y: 10.5, z: -42 },
+      { x: 0, y: 10.5, z: -45 },
+      { x: 0, y: 10.5, z: -49 },
+    ],
+    goal: { x: 0, y: 13.0, z: -49 },
+    spikes: [
+      { x: 3,  y: 0, z: 5 },
+      { x: -3, y: 0, z: 1 },
+      { x: 4,  y: 0, z: -8 },
+      { x: -4, y: 0, z: -8 },
+      { x: 0,  y: 5, z: -25 },
+      // EXTENSION spikes
+      { x: 4,  y: 5, z: -32 },
+      { x: -4, y: 5, z: -32 },
+      { x: 0,  y: 9, z: -47 },
+    ],
+  },
 
-    // 8. center bridge step
-    { x: 0,   y: 15.5, z: -5,  w: 5,  h: 1, d: 5 },
+  // ============================================================
+  // STAGE 9 — SECRET (hidden warp destination)
+  // Not shown in stage select; only reachable via the warp in Stage 1.
+  // Theme: gold treasure room — short, coin-rich, big bouncer to the prize.
+  // ============================================================
+  // SECRET STAGE — ABYSS — long, brutal, every hazard at maximum
+  // Reach: warp portal hidden inside Stage 1 spawn platform.
+  // Death: arcade-mode (sends you all the way back to Stage 1).
+  // ============================================================
+  {
+    name: 'ABYSS',
+    description: 'YOU SHOULD NOT BE HERE',
+    secret: true,
+    spawn: { x: 0, y: 1.5, z: 12 },
+    platforms: [
+      // === SECTION 1: opening corridor (z = 12 .. -10) ===
+      { x: 0,   y: -0.5, z: 12,  w: 5, h: 1, d: 4 },     // spawn
+      { x: 0,   y: 0,    z: 6,   w: 2, h: 1, d: 2 },     // step 1
+      { x: -3,  y: 1,    z: 1,   w: 2, h: 1, d: 2 },     // step 2 (left)
+      { x: 3,   y: 2,    z: -3,  w: 2, h: 1, d: 2 },     // step 3 (right)
+      { x: 0,   y: 3,    z: -7,  w: 2, h: 1, d: 2 },     // step 4 (center)
+      { x: -3,  y: 4,    z: -11, w: 2, h: 1, d: 2 },     // step 5
 
-    // 9. final goal platform
-    { x: 0,   y: 17.5, z: -12, w: 7,  h: 1, d: 7 },
-  ],
-  coins: [
-    // each coin between platforms / on top
-    { x: 0,   y: 3.0,  z: -1  },
-    { x: 8,   y: 5.0,  z: -3  },
-    { x: 11,  y: 7.0,  z: -10 },
-    { x: 4,   y: 9.0,  z: -15 },
-    { x: -4,  y: 11.0, z: -15 },
-    { x: -11, y: 13.0, z: -10 },
-    { x: -8,  y: 15.0, z: -3  },
-    { x: 0,   y: 17.0, z: -5  },
-    // bonus coins on spawn platform
-    { x: -5,  y: 0.6,  z: 8   },
-    { x: 5,   y: 0.6,  z: 8   },
-    { x: 0,   y: 0.6,  z: 12  },
-  ],
-  goal: { x: 0, y: 19.2, z: -12 },
-};
+      // === SECTION 2: rest checkpoint ===
+      { x: 0,   y: 5,    z: -16, w: 4, h: 1, d: 4 },     // checkpoint 1
+
+      // === SECTION 3: mover-bridge gauntlet (z = -22 .. -38) ===
+      { x: 0,   y: 6,    z: -22, w: 2, h: 1, d: 2 },     // landing 1
+      { x: 0,   y: 7,    z: -32, w: 2, h: 1, d: 2 },     // landing 2 (after movers)
+      { x: 0,   y: 8,    z: -38, w: 3, h: 1, d: 3 },     // checkpoint 2
+
+      // === SECTION 4: bouncer column (vertical climb) ===
+      { x: 0,   y: 8,    z: -44, w: 3, h: 1, d: 3 },     // bouncer base
+      { x: -4,  y: 13,   z: -44, w: 2, h: 1, d: 2 },     // mid landing 1
+      { x: 4,   y: 17,   z: -44, w: 2, h: 1, d: 2 },     // mid landing 2
+      { x: 0,   y: 21,   z: -44, w: 3, h: 1, d: 3 },     // top landing
+
+      // === SECTION 5: crumble path under fire ===
+      { x: 0,   y: 21,   z: -50, w: 4, h: 1, d: 3 },     // start of crumble path
+      { x: 0,   y: 21,   z: -68, w: 4, h: 1, d: 3 },     // end of crumble path
+
+      // === SECTION 6: zig-zag approach with elite throwers ===
+      { x: -5,  y: 22,   z: -74, w: 2, h: 1, d: 2 },     // approach 1
+      { x: 5,   y: 23,   z: -78, w: 2, h: 1, d: 2 },     // approach 2
+      { x: 0,   y: 24,   z: -82, w: 2, h: 1, d: 2 },     // approach 3
+      { x: -5,  y: 25,   z: -86, w: 2, h: 1, d: 2 },     // approach 4
+      { x: 5,   y: 26,   z: -90, w: 2, h: 1, d: 2 },     // approach 5
+      { x: 0,   y: 27,   z: -94, w: 3, h: 1, d: 3 },     // checkpoint 3 (rest)
+
+      // === SECTION 7: RED THROWER CROSSFIRE — 4 elites lined up ===
+      { x: 0,   y: 28,   z: -100, w: 2, h: 1, d: 2 },    // exposed
+      { x: 0,   y: 29,   z: -106, w: 2, h: 1, d: 2 },    // exposed
+      { x: 0,   y: 30,   z: -112, w: 3, h: 1, d: 3 },    // checkpoint 4
+
+      // === SECTION 8: final crumble + dive-bomb gauntlet ===
+      { x: 0,   y: 30,   z: -118, w: 3, h: 1, d: 3 },    // crumble launch
+      { x: 0,   y: 30,   z: -132, w: 3, h: 1, d: 3 },    // crumble end
+
+      // === FINAL GOAL PLATFORM ===
+      { x: 0,   y: 31,   z: -140, w: 7, h: 1, d: 7 },
+    ],
+
+    movers: [
+      // SECTION 3 — moving bridges across the void
+      { x: 0,  y: 6,   z: -25, w: 2, h: 0.6, d: 2, axis: 'x', range: 5, speed: 2.0 },  // fast
+      { x: 0,  y: 6.5, z: -29, w: 2, h: 0.6, d: 2, axis: 'x', range: 5, speed: 2.4 }, // faster
+      // SECTION 8 — vertical movers across crumble pit
+      { x: 0,  y: 30,  z: -124, w: 2, h: 0.6, d: 2, axis: 'x', range: 4, speed: 2.6 }, // brutal
+      { x: 0,  y: 30,  z: -128, w: 2, h: 0.6, d: 2, axis: 'x', range: 4, speed: 2.8 }, // brutal
+    ],
+
+    bouncers: [
+      // SECTION 4 — bouncer column
+      { x: 0,  y: 8.7,  z: -44, w: 2.5, h: 0.4, d: 2.5, power: 16 },  // base launch
+      { x: -4, y: 13.7, z: -44, w: 1.6, h: 0.4, d: 1.6, power: 14 },  // landing 1 relaunch
+      { x: 4,  y: 17.7, z: -44, w: 1.6, h: 0.4, d: 1.6, power: 14 },  // landing 2 relaunch
+    ],
+
+    crumblers: [
+      // SECTION 5 — long crumbling path between throwers
+      { x: 0, y: 21, z: -54, w: 2, h: 1, d: 2, delay: 0.55 },
+      { x: 0, y: 21, z: -58, w: 2, h: 1, d: 2, delay: 0.55 },
+      { x: 0, y: 21, z: -62, w: 2, h: 1, d: 2, delay: 0.55 },
+      { x: 0, y: 21, z: -66, w: 2, h: 1, d: 2, delay: 0.55 },
+      // SECTION 8 — final gauntlet (must keep moving)
+      { x: 0, y: 30, z: -120, w: 2, h: 1, d: 2, delay: 0.45 },
+      { x: 0, y: 30, z: -123, w: 2, h: 1, d: 2, delay: 0.45 },
+      { x: 0, y: 30, z: -126, w: 2, h: 1, d: 2, delay: 0.45 },
+      { x: 0, y: 30, z: -129, w: 2, h: 1, d: 2, delay: 0.45 },
+    ],
+
+    spikes: [
+      // SECTION 1 — punish missteps
+      { x: -3,  y: 0,  z: 6  },
+      { x: 3,   y: 1,  z: 1  },
+      { x: -3,  y: 2,  z: -3 },
+      { x: 3,   y: 3,  z: -7 },
+      // SECTION 2 — between sections
+      { x: 0,   y: 5,  z: -19 },
+      // SECTION 3 — flanking the mover gauntlet
+      { x: -4,  y: 6,  z: -25 },
+      { x: 4,   y: 6,  z: -25 },
+      { x: -4,  y: 7,  z: -29 },
+      { x: 4,   y: 7,  z: -29 },
+      // SECTION 6 — punish bad approach jumps
+      { x: 5,   y: 22, z: -74 },
+      { x: -5,  y: 23, z: -78 },
+      { x: 5,   y: 25, z: -86 },
+      { x: -5,  y: 26, z: -90 },
+      // SECTION 7 — flanking the crossfire platforms
+      { x: -3,  y: 28, z: -100 },
+      { x: 3,   y: 29, z: -106 },
+      // SECTION 8 — ringed around final crumble path
+      { x: -3,  y: 30, z: -123 },
+      { x: 3,   y: 30, z: -126 },
+    ],
+
+    mobs: [
+      // === DIVE BOMBERS — trimmed to 5, only at the toughest sections ===
+      { x: 0,   y: 10, z: -28,   range: 8 },   // mover gauntlet
+      { x: -4,  y: 16, z: -44,   range: 7 },   // top of bouncer column
+      { x: 0,   y: 28, z: -82,   range: 9 },   // mid zig-zag (with red throwers)
+      { x: 0,   y: 31, z: -100,  range: 9 },   // red crossfire
+      { x: 0,   y: 33, z: -125,  range: 10 },  // final crumble gauntlet
+
+      // === REGULAR (cyan) THROWERS — moderate threat ===
+      { type: 'thrower',     x: 8,   y: 4,  z: -8,   range: 14 },
+      { type: 'thrower',     x: -8,  y: 6,  z: -22,  range: 14 },
+      { type: 'thrower',     x: 8,   y: 7,  z: -32,  range: 14 },
+
+      // === RED ELITE THROWERS — fast (1s), 50 damage ===
+      { type: 'thrower-red', x: -8,  y: 23, z: -54,  range: 18 },   // crumble path 1
+      { type: 'thrower-red', x: 8,   y: 23, z: -62,  range: 18 },   // crumble path 2
+      { type: 'thrower-red', x: -10, y: 26, z: -82,  range: 20 },   // mid approach
+      { type: 'thrower-red', x: 10,  y: 26, z: -82,  range: 20 },   // mid approach
+
+      // === SECTION 7 — 4 RED ELITES in a CROSSFIRE pattern ===
+      { type: 'thrower-red', x: -10, y: 28, z: -100, range: 22 },
+      { type: 'thrower-red', x: 10,  y: 28, z: -100, range: 22 },
+      { type: 'thrower-red', x: -10, y: 30, z: -106, range: 22 },
+      { type: 'thrower-red', x: 10,  y: 30, z: -106, range: 22 },
+
+      // === SECTION 8 — final guardians (THE WALL OF DEATH) ===
+      { type: 'thrower-red', x: -8,  y: 32, z: -125, range: 24 },
+      { type: 'thrower-red', x: 8,   y: 32, z: -125, range: 24 },
+      { type: 'thrower-red', x: -8,  y: 33, z: -135, range: 24 },
+      { type: 'thrower-red', x: 8,   y: 33, z: -135, range: 24 },
+    ],
+
+    coins: [
+      { x: 0,   y: 0.6, z: 12 },
+      { x: 0,   y: 1.1, z: 6  },
+      { x: -3,  y: 2.1, z: 1  },
+      { x: 3,   y: 3.1, z: -3 },
+      { x: 0,   y: 6.1, z: -16 },
+      { x: 0,   y: 7.1, z: -25 },
+      { x: 0,   y: 7.6, z: -29 },
+      { x: 0,   y: 11,  z: -44 },
+      { x: -4,  y: 15,  z: -44 },
+      { x: 4,   y: 19,  z: -44 },
+      { x: 0,   y: 22.1, z: -54 },
+      { x: 0,   y: 22.1, z: -58 },
+      { x: 0,   y: 22.1, z: -62 },
+      { x: 0,   y: 22.1, z: -66 },
+      { x: -5,  y: 23.1, z: -74 },
+      { x: 5,   y: 24.1, z: -78 },
+      { x: 0,   y: 25.1, z: -82 },
+      { x: -5,  y: 26.1, z: -86 },
+      { x: 5,   y: 27.1, z: -90 },
+      { x: 0,   y: 28.1, z: -94 },
+      { x: 0,   y: 29.1, z: -100 },
+      { x: 0,   y: 30.1, z: -106 },
+      { x: 0,   y: 31.1, z: -112 },
+      { x: 0,   y: 31.1, z: -132 },
+      { x: 0,   y: 32.1, z: -140 },
+    ],
+
+    goal: { x: 0, y: 33, z: -140, bossLocked: true },
+
+    // === BOSS ===
+    // Multi-phase guardian hovering above the final arena platform.
+    // Stomp from above 8 times to defeat. Goal portal stays HIDDEN until then.
+    boss: {
+      x: 0, z: -140,        // arena center (above the final 7×7 platform)
+      hoverY: 36,           // base hover altitude
+      arenaY: 32,           // top of arena platform
+      hp: 8, maxHp: 8,
+    },
+
+    // === PICKUPS ===
+    // Healing orbs (cyan) restore HP to full. Shield orbs (magenta) grant
+    // 5 seconds of invulnerability. Distributed across the long path.
+    pickups: [
+      { type: 'heal',   x: 0,  y: 6.5,  z: -16  },  // checkpoint 1
+      { type: 'shield', x: 0,  y: 8.5,  z: -38  },  // checkpoint 2
+      { type: 'heal',   x: 0,  y: 22,   z: -58  },  // mid crumble path
+      { type: 'shield', x: 0,  y: 22,   z: -68  },  // end of crumble path
+      { type: 'heal',   x: 0,  y: 28,   z: -94  },  // checkpoint 3
+      { type: 'shield', x: 0,  y: 30.5, z: -112 },  // checkpoint 4 (before final)
+    ],
+  },
+];
+let LEVEL = STAGES[0]; // current stage data; swapped on stage change
 
 // ============================================================
 // STATE
 // ============================================================
 const state = {
-  scene: 'title',           // title | playing | paused | win | how
+  scene: 'title',           // title | playing | paused | win | how | select | victory
+  stageIdx: 0,
   time: 0,
   coinsCollected: 0,
-  totalCoins: LEVEL.coins.length,
+  totalCoins: STAGES[0].coins.length,
   shake: 0,
 };
 
@@ -474,6 +1403,11 @@ const player = {
   mesh: null,
   trail: [],
   won: false,
+  standingOnMover: null,
+  hp: 100,                  // current health (0-100)
+  maxHp: 100,
+  iframes: 0,               // invulnerability timer in seconds
+  shouldDie: false,         // deferred death flag — processed at end of update
 };
 
 const cam = {
@@ -489,8 +1423,41 @@ const cam = {
 // ============================================================
 // SAVE / LOAD
 // ============================================================
-const SAVE_KEY = 'neon-leap-3d-save-v1';
-const defaultSave = () => ({ bestTime: null, bestCoins: 0 });
+const SAVE_KEY = 'neon-leap-3d-save-v2';
+const defaultSave = () => ({
+  unlocked: 1,        // number of stages unlocked (1 = only stage 0 available)
+  bestTime: {},       // { stageIdx: seconds }
+  bestCoins: {},      // { stageIdx: count }
+  // === Customization & currency ===
+  coins: 0,           // accumulated currency (from picking up coins across runs)
+  unlocks: { colors: ['magenta'], shapes: ['cube'], stats: [] },
+  equipped: { color: 'magenta', shape: 'cube', stats: [] },
+});
+
+// Catalog of cosmetic and stat unlocks the player can buy with coins.
+// Defaults (cost 0) are unlocked from the start; everything else costs coins.
+const CUSTOMIZE_CATALOG = {
+  colors: [
+    { id: 'magenta', name: 'MAGENTA', hex: 0xff2db5, cost: 0   },
+    { id: 'cyan',    name: 'CYAN',    hex: 0x00f5ff, cost: 30  },
+    { id: 'gold',    name: 'GOLD',    hex: 0xffd23d, cost: 60  },
+    { id: 'neon',    name: 'NEON',    hex: 0x44ff66, cost: 90  },
+    { id: 'white',   name: 'WHITE',   hex: 0xeeeeff, cost: 120 },
+    { id: 'crimson', name: 'CRIMSON', hex: 0xff3366, cost: 160 },
+  ],
+  shapes: [
+    { id: 'cube',    name: 'CUBE',    cost: 0   },
+    { id: 'diamond', name: 'DIAMOND', cost: 80  },
+    { id: 'sphere',  name: 'SPHERE',  cost: 120 },
+    { id: 'pyramid', name: 'PYRAMID', cost: 160 },
+  ],
+  stats: [
+    { id: 'jump',  name: 'HIGH JUMP',   desc: '+15% JUMP',     cost: 150 },
+    { id: 'speed', name: 'SPRINT',      desc: '+15% RUN',      cost: 200 },
+    { id: 'hp',    name: 'TOUGH BODY',  desc: '+50 MAX HP',    cost: 250 },
+    { id: 'tjump', name: 'TRIPLE JUMP', desc: '+1 AIR JUMP',   cost: 400 },
+  ],
+};
 let save = defaultSave();
 const storageOK = !!(window.storage && typeof window.storage.get === 'function');
 
@@ -498,7 +1465,17 @@ async function loadSave() {
   if (!storageOK) return;
   try {
     const r = await window.storage.get(SAVE_KEY);
-    if (r && r.value) save = Object.assign(defaultSave(), JSON.parse(r.value));
+    if (r && r.value) {
+      const loaded = JSON.parse(r.value);
+      const def = defaultSave();
+      save = Object.assign(def, loaded);
+      // Deep-merge nested customization fields so old saves still get defaults
+      save.unlocks  = Object.assign(def.unlocks,  loaded.unlocks  || {});
+      save.equipped = Object.assign(def.equipped, loaded.equipped || {});
+      // Make sure default options are always in unlocks
+      if (!save.unlocks.colors.includes('magenta')) save.unlocks.colors.push('magenta');
+      if (!save.unlocks.shapes.includes('cube'))    save.unlocks.shapes.push('cube');
+    }
   } catch (e) {}
 }
 async function persistSave() {
@@ -510,7 +1487,8 @@ async function resetSave() {
   if (storageOK) { try { await window.storage.delete(SAVE_KEY); } catch(e){} }
   save = defaultSave();
   updateBestHUD();
-  showToast('BEST RESET');
+  if (state.scene === 'select') buildStageGrid();
+  showToast('PROGRESS RESET');
 }
 
 // ============================================================
@@ -558,6 +1536,205 @@ const sfx = {
 };
 
 // ============================================================
+// MUSIC — procedural per-stage background loops
+// Step-sequenced 32-step pattern (4 bars of 8th notes).
+// Scheduler runs from main loop, scheduling notes ~120ms ahead.
+// ============================================================
+const music = {
+  master: null,
+  isPlaying: false,
+  step: 0,
+  beatLen: 0.25,            // sec per step (8th note)
+  nextNoteTime: 0,
+  schedAhead: 0.12,         // schedule 120ms ahead of audio clock
+  currentSong: null,
+  targetVol: 0.18,
+};
+
+function initMusic() {
+  const a = getAudio(); if (!a) return;
+  if (!music.master) {
+    music.master = a.createGain();
+    music.master.gain.value = 0;
+    music.master.connect(a.destination);
+  }
+}
+
+function startMusic(stageIdx) {
+  initMusic();
+  const a = getAudio(); if (!a || !music.master) return;
+  music.currentSong = SONGS[stageIdx % SONGS.length];
+  music.beatLen = 60 / music.currentSong.bpm / 2;  // 8th note duration
+  music.step = 0;
+  music.nextNoteTime = a.currentTime + 0.05;
+  music.isPlaying = true;
+  // fade in
+  music.master.gain.cancelScheduledValues(a.currentTime);
+  music.master.gain.setValueAtTime(music.master.gain.value, a.currentTime);
+  music.master.gain.linearRampToValueAtTime(music.targetVol, a.currentTime + 0.5);
+}
+
+function stopMusic(fade = 0.3) {
+  const a = getAudio(); if (!a || !music.master) return;
+  music.master.gain.cancelScheduledValues(a.currentTime);
+  music.master.gain.setValueAtTime(music.master.gain.value, a.currentTime);
+  music.master.gain.linearRampToValueAtTime(0, a.currentTime + fade);
+  setTimeout(() => { music.isPlaying = false; }, fade * 1000 + 50);
+}
+
+function duckMusic() {  // for pause — keep playing but drop volume
+  const a = getAudio(); if (!a || !music.master) return;
+  music.master.gain.cancelScheduledValues(a.currentTime);
+  music.master.gain.linearRampToValueAtTime(0.04, a.currentTime + 0.2);
+}
+
+function unduckMusic() {
+  const a = getAudio(); if (!a || !music.master) return;
+  music.master.gain.cancelScheduledValues(a.currentTime);
+  music.master.gain.linearRampToValueAtTime(music.targetVol, a.currentTime + 0.2);
+}
+
+function updateMusic(dt) {
+  if (!music.isPlaying || !music.currentSong) return;
+  const a = getAudio(); if (!a) return;
+  while (music.nextNoteTime < a.currentTime + music.schedAhead) {
+    playMusicStep(music.step, music.nextNoteTime);
+    music.nextNoteTime += music.beatLen;
+    music.step = (music.step + 1) % 32;
+  }
+}
+
+function playMusicStep(step, when) {
+  const s = music.currentSong;
+  if (!s || !music.master) return;
+  if (s.kick[step]  === '1') scheduleKick(when);
+  if (s.snare[step] === '1') scheduleSnare(when);
+  if (s.hihat[step] === '1') scheduleHihat(when);
+  if (s.bass[step] > 0)      scheduleBassNote(s.bass[step], music.beatLen * 1.6, when);
+  if (s.arp[step] > 0)       scheduleArpNote(s.arp[step], music.beatLen * 0.7, when);
+}
+
+function scheduleKick(when) {
+  const a = getAudio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, when);
+  o.frequency.exponentialRampToValueAtTime(40, when + 0.1);
+  g.gain.setValueAtTime(0.5, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.15);
+  o.connect(g); g.connect(music.master);
+  o.start(when); o.stop(when + 0.2);
+}
+
+function scheduleSnare(when) {
+  const a = getAudio(); if (!a) return;
+  const bufSize = Math.floor(a.sampleRate * 0.1);
+  const buf = a.createBuffer(1, bufSize, a.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const noise = a.createBufferSource(); noise.buffer = buf;
+  const filter = a.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 1500;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.22, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.1);
+  noise.connect(filter); filter.connect(g); g.connect(music.master);
+  noise.start(when); noise.stop(when + 0.12);
+}
+
+function scheduleHihat(when) {
+  const a = getAudio(); if (!a) return;
+  const bufSize = Math.floor(a.sampleRate * 0.04);
+  const buf = a.createBuffer(1, bufSize, a.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const noise = a.createBufferSource(); noise.buffer = buf;
+  const filter = a.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 7000;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.06, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
+  noise.connect(filter); filter.connect(g); g.connect(music.master);
+  noise.start(when); noise.stop(when + 0.05);
+}
+
+function scheduleBassNote(freq, dur, when) {
+  const a = getAudio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'sawtooth';
+  o.frequency.value = freq;
+  const filter = a.createBiquadFilter();
+  filter.type = 'lowpass'; filter.frequency.value = 800; filter.Q.value = 4;
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(0.16, when + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  o.connect(filter); filter.connect(g); g.connect(music.master);
+  o.start(when); o.stop(when + dur + 0.05);
+}
+
+function scheduleArpNote(freq, dur, when) {
+  const a = getAudio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'square';
+  o.frequency.value = freq;
+  const filter = a.createBiquadFilter();
+  filter.type = 'lowpass'; filter.frequency.value = 3000;
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(0.07, when + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  o.connect(filter); filter.connect(g); g.connect(music.master);
+  o.start(when); o.stop(when + dur + 0.05);
+}
+
+// === Song generator ===
+const _MINOR = [0, 2, 3, 5, 7, 8, 10];
+const _MAJOR = [0, 2, 4, 5, 7, 9, 11];
+const _DRUMS = {
+  rock:    { kick: '10000000', snare: '00001000', hihat: '10101010' },
+  driving: { kick: '10001000', snare: '00001000', hihat: '11111111' },
+  bouncy:  { kick: '10010100', snare: '00001000', hihat: '01010101' },
+};
+const _ARPSEQ = {
+  asc:   [0, 1, 2, 1, 0, 1, 2, 1],
+  desc:  [2, 1, 0, 1, 2, 1, 0, 1],
+  wave:  [0, 1, 2, 1, 2, 1, 0, 1],
+  pulse: [0, 0, 2, 0, 0, 0, 2, 0],
+};
+function _midi2freq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+function _triad(root, scale, degree) {
+  return [0, 2, 4].map(inc => {
+    const d = degree + inc, oct = Math.floor(d / 7);
+    return root + scale[d % 7] + oct * 12;
+  });
+}
+function generateSong(cfg) {
+  const scale = cfg.mode === 'major' ? _MAJOR : _MINOR;
+  const dp = _DRUMS[cfg.drum] || _DRUMS.rock;
+  const song = { bpm: cfg.bpm, kick: dp.kick.repeat(4), snare: dp.snare.repeat(4), hihat: dp.hihat.repeat(4), bass: [], arp: [] };
+  for (let bar = 0; bar < 4; bar++) {
+    const chord = cfg.prog[bar];
+    const bassMidi = cfg.root - 12 + scale[chord];
+    for (let step = 0; step < 8; step++) {
+      song.bass.push((step === 0 || step === 4) ? _midi2freq(bassMidi) : 0);
+    }
+    const triadFreqs = _triad(cfg.root, scale, chord).map(_midi2freq);
+    const seq = _ARPSEQ[cfg.arp] || _ARPSEQ.asc;
+    for (let step = 0; step < 8; step++) song.arp.push(triadFreqs[seq[step]]);
+  }
+  return song;
+}
+
+// 8 stage songs — energetic / upbeat, each in a different key/tempo
+const SONGS = [
+  { bpm: 116, root: 57, prog: [0, 0, 5, 6], mode: 'minor', drum: 'rock',    arp: 'asc'   }, // 1 AWAKENING — A minor, calm intro
+  { bpm: 130, root: 62, prog: [0, 5, 0, 6], mode: 'minor', drum: 'driving', arp: 'asc'   }, // 2 PULSE — D minor, driving
+  { bpm: 138, root: 64, prog: [0, 3, 5, 6], mode: 'minor', drum: 'driving', arp: 'wave'  }, // 3 VORTEX — E minor, ascending
+  { bpm: 124, root: 67, prog: [0, 4, 5, 0], mode: 'major', drum: 'bouncy',  arp: 'asc'   }, // 4 NEXUS — G major, hopeful
+  { bpm: 142, root: 59, prog: [0, 0, 5, 4], mode: 'minor', drum: 'bouncy',  arp: 'wave'  }, // 5 BOUNCE — B minor, bouncy
+  { bpm: 138, root: 60, prog: [0, 5, 3, 6], mode: 'minor', drum: 'driving', arp: 'desc'  }, // 6 SHIFT — C minor, urgent
+  { bpm: 145, root: 66, prog: [0, 4, 5, 4], mode: 'minor', drum: 'driving', arp: 'pulse' }, // 7 REBOUND — F# minor, propulsive
+  { bpm: 152, root: 57, prog: [0, 1, 0, 6], mode: 'minor', drum: 'driving', arp: 'asc'   }, // 8 COLLAPSE — A minor, relentless
+].map(generateSong);
+
+// ============================================================
 // THREE.JS SCENE
 // ============================================================
 const canvas = document.getElementById('game-canvas');
@@ -567,7 +1744,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050010);
 scene.fog = new THREE.FogExp2(0x150033, 0.018);
 
-const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(85, 1, 0.1, 500);
 camera.position.set(0, 8, 16);
 
 // Lighting (just a tiny ambient — most materials are emissive/basic)
@@ -642,41 +1819,56 @@ scene.add(grid2);
 // ============================================================
 // PLATFORMS
 // ============================================================
+// Stage root: parent of all per-stage objects so we can dispose them in one shot
+const stageRoot = new THREE.Group();
+scene.add(stageRoot);
+
 const platformMeshes = [];
 const platformsAABB = []; // for collision: { minX, maxX, minY, maxY, minZ, maxZ }
 
 function buildPlatforms() {
   for (const p of LEVEL.platforms) {
-    // Body
-    const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
-    const mat = new THREE.MeshLambertMaterial({
-      color: COL_GROUND,
-      emissive: 0x110028,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(p.x, p.y, p.z);
-    scene.add(mesh);
+    // collisionOnly: AABB only, no visible mesh (hides geometry tricks like fake holes)
+    if (!p.collisionOnly) {
+      // Body
+      const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
+      const mat = new THREE.MeshLambertMaterial({
+        color: p.color != null ? p.color : COL_GROUND,
+        emissive: p.emissive != null ? p.emissive : 0x110028,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(p.x, p.y, p.z);
+      stageRoot.add(mesh);
 
-    // Edge glow (cyan wireframe)
-    const edgeGeo = new THREE.EdgesGeometry(geo);
-    const edgeMat = new THREE.LineBasicMaterial({ color: COL_PLATFORM, linewidth: 2 });
-    const edges = new THREE.LineSegments(edgeGeo, edgeMat);
-    edges.position.copy(mesh.position);
-    scene.add(edges);
+      if (!p.subtle) {
+        // Edge glow (cyan wireframe)
+        const edgeGeo = new THREE.EdgesGeometry(geo);
+        const edgeMat = new THREE.LineBasicMaterial({ color: COL_PLATFORM, linewidth: 2 });
+        const edges = new THREE.LineSegments(edgeGeo, edgeMat);
+        edges.position.copy(mesh.position);
+        stageRoot.add(edges);
 
-    // Top accent stripe (thin glowing line on top edge perimeter)
-    const topGeo = new THREE.BoxGeometry(p.w * 1.001, 0.06, p.d * 1.001);
-    const topMat = new THREE.MeshBasicMaterial({ color: COL_PLATFORM });
-    const top = new THREE.Mesh(topGeo, topMat);
-    top.position.set(p.x, p.y + p.h/2 + 0.01, p.z);
-    scene.add(top);
+        // Top accent stripe (thin glowing line on top edge perimeter)
+        const topGeo = new THREE.BoxGeometry(p.w * 1.001, 0.06, p.d * 1.001);
+        const topMat = new THREE.MeshBasicMaterial({ color: COL_PLATFORM });
+        const top = new THREE.Mesh(topGeo, topMat);
+        top.position.set(p.x, p.y + p.h/2 + 0.01, p.z);
+        stageRoot.add(top);
+      }
 
-    platformMeshes.push(mesh);
-    platformsAABB.push({
-      minX: p.x - p.w/2, maxX: p.x + p.w/2,
-      minY: p.y - p.h/2, maxY: p.y + p.h/2,
-      minZ: p.z - p.d/2, maxZ: p.z + p.d/2,
-    });
+      platformMeshes.push(mesh);
+    }
+
+    // visualOnly: visible mesh but no collision (used to mask the real solid pieces underneath)
+    if (!p.visualOnly) {
+      platformsAABB.push({
+        minX: p.x - p.w/2, maxX: p.x + p.w/2,
+        minY: p.y - p.h/2, maxY: p.y + p.h/2,
+        minZ: p.z - p.d/2, maxZ: p.z + p.d/2,
+        mover: null,
+        bouncer: 0,
+      });
+    }
   }
 }
 
@@ -698,7 +1890,7 @@ function buildCoins() {
     const halo = new THREE.Mesh(haloGeo, haloMat);
     mesh.add(halo);
 
-    scene.add(mesh);
+    stageRoot.add(mesh);
     coins.push({ mesh, pos: new THREE.Vector3(c.x, c.y, c.z), taken: false, t: Math.random() * Math.PI * 2, halo });
   }
 }
@@ -742,8 +1934,1189 @@ function buildGoal() {
   goalLight = new THREE.PointLight(COL_GOAL, 1.5, 14);
   group.add(goalLight);
 
-  scene.add(group);
+  stageRoot.add(group);
   goalMesh = group;
+  // If this stage's goal is bossLocked, hide everything until boss is defeated
+  if (LEVEL.goal && LEVEL.goal.bossLocked) {
+    group.visible = false;
+    if (goalRing) goalRing.visible = false;
+    if (goalLight) goalLight.visible = false;
+  }
+}
+
+// ============================================================
+// SPIKES (death hazards)
+// ============================================================
+const spikes = []; // { pos, mesh }
+const SPIKE_RADIUS = 0.9;
+
+function buildSpikes() {
+  if (!LEVEL.spikes) return;
+  for (const s of LEVEL.spikes) {
+    const group = new THREE.Group();
+    group.position.set(s.x, s.y, s.z);
+
+    // body cone (pointing up)
+    const coneGeo = new THREE.ConeGeometry(0.55, 1.6, 8);
+    const coneMat = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    group.add(cone);
+
+    // base ring (small flat torus at the bottom)
+    const baseGeo = new THREE.TorusGeometry(0.5, 0.06, 6, 16);
+    const baseMat = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.rotation.x = Math.PI / 2;
+    base.position.y = -0.8;
+    group.add(base);
+
+    // glow halo
+    const haloGeo = new THREE.SphereGeometry(1.0, 12, 8);
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xff3366, transparent: true, opacity: 0.18, fog: false });
+    group.add(new THREE.Mesh(haloGeo, haloMat));
+
+    stageRoot.add(group);
+    spikes.push({ pos: new THREE.Vector3(s.x, s.y, s.z), mesh: group });
+  }
+}
+
+// ============================================================
+// MOVING PLATFORMS (movers)
+// ============================================================
+const movers = []; // { mesh, group, baseX, baseY, baseZ, x, y, z, w, h, d, axis, range, speed, phase, prevX, prevY, prevZ, aabb }
+
+function buildMovers() {
+  if (!LEVEL.movers) return;
+  for (const m of LEVEL.movers) {
+    const group = new THREE.Group();
+    group.position.set(m.x, m.y, m.z);
+
+    // body — magenta-tinted to differentiate from static cyan platforms
+    const geo = new THREE.BoxGeometry(m.w, m.h, m.d);
+    const mat = new THREE.MeshLambertMaterial({ color: 0x300848, emissive: 0x180024 });
+    const body = new THREE.Mesh(geo, mat);
+    group.add(body);
+
+    // edges — magenta wireframe to signal "moves"
+    const edgeGeo = new THREE.EdgesGeometry(geo);
+    const edgeMat = new THREE.LineBasicMaterial({ color: COL_PLAYER });
+    group.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+    // top stripe
+    const topGeo = new THREE.BoxGeometry(m.w * 1.001, 0.06, m.d * 1.001);
+    const topMat = new THREE.MeshBasicMaterial({ color: COL_PLAYER });
+    const top = new THREE.Mesh(topGeo, topMat);
+    top.position.y = m.h/2 + 0.01;
+    group.add(top);
+
+    // arrow indicator showing axis of motion (small chevron on top)
+    const arrowGeo = new THREE.ConeGeometry(0.18, 0.4, 4);
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const a1 = new THREE.Mesh(arrowGeo, arrowMat);
+    const a2 = new THREE.Mesh(arrowGeo, arrowMat);
+    a1.position.y = a2.position.y = m.h/2 + 0.25;
+    if (m.axis === 'x') {
+      a1.rotation.z = -Math.PI/2; a1.position.x = 0.4;
+      a2.rotation.z = Math.PI/2;  a2.position.x = -0.4;
+    } else if (m.axis === 'z') {
+      a1.rotation.x = Math.PI/2;  a1.position.z = 0.4;
+      a2.rotation.x = -Math.PI/2; a2.position.z = -0.4;
+    } else {
+      a1.position.y = m.h/2 + 0.5;
+      a2.position.y = m.h/2 + 0.05; a2.rotation.x = Math.PI;
+    }
+    group.add(a1); group.add(a2);
+
+    stageRoot.add(group);
+
+    const aabb = {
+      minX: m.x - m.w/2, maxX: m.x + m.w/2,
+      minY: m.y - m.h/2, maxY: m.y + m.h/2,
+      minZ: m.z - m.d/2, maxZ: m.z + m.d/2,
+      mover: null, // back-ref filled below
+      bouncer: 0,
+    };
+    platformsAABB.push(aabb);
+
+    const moverObj = {
+      group, body,
+      baseX: m.x, baseY: m.y, baseZ: m.z,
+      x: m.x, y: m.y, z: m.z,
+      prevX: m.x, prevY: m.y, prevZ: m.z,
+      w: m.w, h: m.h, d: m.d,
+      axis: m.axis || 'x',
+      range: m.range || 4,
+      speed: m.speed || 1.5,
+      phase: m.phase || 0,
+      aabb,
+    };
+    aabb.mover = moverObj;
+    movers.push(moverObj);
+  }
+}
+
+function updateMovers(dt) {
+  for (const m of movers) {
+    m.prevX = m.x; m.prevY = m.y; m.prevZ = m.z;
+    m.phase += dt * m.speed;
+    const offset = Math.sin(m.phase) * m.range;
+    if (m.axis === 'x') m.x = m.baseX + offset;
+    else if (m.axis === 'y') m.y = m.baseY + offset;
+    else if (m.axis === 'z') m.z = m.baseZ + offset;
+    m.group.position.set(m.x, m.y, m.z);
+    m.aabb.minX = m.x - m.w/2; m.aabb.maxX = m.x + m.w/2;
+    m.aabb.minY = m.y - m.h/2; m.aabb.maxY = m.y + m.h/2;
+    m.aabb.minZ = m.z - m.d/2; m.aabb.maxZ = m.z + m.d/2;
+  }
+}
+
+// ============================================================
+// BOUNCER PADS
+// ============================================================
+const bouncers = []; // { mesh, x, y, z, w, h, d, power, t }
+
+function buildBouncers() {
+  if (!LEVEL.bouncers) return;
+  for (const b of LEVEL.bouncers) {
+    const group = new THREE.Group();
+    group.position.set(b.x, b.y, b.z);
+
+    // body — bright cyan, low and wide
+    const geo = new THREE.BoxGeometry(b.w, b.h, b.d);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x00f5ff });
+    group.add(new THREE.Mesh(geo, mat));
+
+    // top stripe (yellow accent)
+    const topGeo = new THREE.BoxGeometry(b.w * 1.05, 0.06, b.d * 1.05);
+    const topMat = new THREE.MeshBasicMaterial({ color: COL_COIN });
+    const top = new THREE.Mesh(topGeo, topMat);
+    top.position.y = b.h/2 + 0.02;
+    group.add(top);
+
+    // up-arrows (pulsing)
+    for (let i = 0; i < 3; i++) {
+      const aGeo = new THREE.ConeGeometry(0.22, 0.5, 4);
+      const aMat = new THREE.MeshBasicMaterial({ color: COL_COIN });
+      const a = new THREE.Mesh(aGeo, aMat);
+      a.position.set(((i-1) * 0.5), b.h/2 + 0.4, 0);
+      group.add(a);
+    }
+
+    // glow halo
+    const haloGeo = new THREE.SphereGeometry(b.w * 0.7, 12, 8);
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff, transparent: true, opacity: 0.2, fog: false });
+    group.add(new THREE.Mesh(haloGeo, haloMat));
+
+    stageRoot.add(group);
+
+    // NOTE: Bouncers are NOT added to platformsAABB. They are detected via overlap
+    // in checkBouncers() each frame. This avoids them blocking horizontal movement
+    // (since their Y range overlaps with player's at ground level).
+
+    bouncers.push({ group, x: b.x, y: b.y, z: b.z, w: b.w, h: b.h, d: b.d, power: b.power || 16, t: 0 });
+  }
+}
+
+function updateBouncers(dt) {
+  // Pulsing animation for visual feedback
+  for (const b of bouncers) {
+    b.t += dt;
+    const s = 1 + Math.sin(b.t * 4) * 0.08;
+    b.group.scale.set(s, 1, s);
+  }
+}
+
+// Check overlap with bouncers each frame and launch player if so
+function checkBouncers() {
+  if (player.won) return;
+  const pa = playerAABB(player.pos);
+  for (const b of bouncers) {
+    const bMinX = b.x - b.w/2, bMaxX = b.x + b.w/2;
+    const bMinY = b.y - b.h/2, bMaxY = b.y + b.h/2;
+    const bMinZ = b.z - b.d/2, bMaxZ = b.z + b.d/2;
+    if (
+      pa.minX < bMaxX && pa.maxX > bMinX &&
+      pa.minZ < bMaxZ && pa.maxZ > bMinZ &&
+      pa.minY < bMaxY + 0.05 && pa.maxY > bMinY - 0.05 &&
+      player.vel.y < 1   // not already launching upward
+    ) {
+      player.vel.y = b.power;
+      player.onGround = false;
+      player.jumpsLeft = 1;
+      player.standingOnMover = null;
+      sfx.djump();
+      spawnParticles(player.pos.x, player.pos.y - player.size.h/2, player.pos.z, {
+        count: 14, color: 0x00f5ff, speedMin: 2, speedMax: 5, lift: 4, life: 0.5, gravity: 4,
+      });
+      return;
+    }
+  }
+}
+
+// ============================================================
+// CRUMBLING PLATFORMS (crumblers)
+// ============================================================
+const crumblers = []; // { aabb, x, y, z, w, h, d, delay, triggered, timer, fallen, group, body }
+
+function buildCrumblers() {
+  if (!LEVEL.crumblers) return;
+  for (const c of LEVEL.crumblers) {
+    const group = new THREE.Group();
+    group.position.set(c.x, c.y, c.z);
+
+    // body — orange/yellow tint to signal "danger / unstable"
+    const geo = new THREE.BoxGeometry(c.w, c.h, c.d);
+    const mat = new THREE.MeshLambertMaterial({ color: 0x4a2200, emissive: 0x331100 });
+    const body = new THREE.Mesh(geo, mat);
+    group.add(body);
+
+    // edges — yellow wireframe (warning)
+    const edgeGeo = new THREE.EdgesGeometry(geo);
+    const edgeMat = new THREE.LineBasicMaterial({ color: COL_COIN });
+    group.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+    // top crack pattern (yellow stripe with X mark)
+    const topGeo = new THREE.BoxGeometry(c.w * 1.001, 0.06, c.d * 1.001);
+    const topMat = new THREE.MeshBasicMaterial({ color: COL_COIN });
+    const top = new THREE.Mesh(topGeo, topMat);
+    top.position.y = c.h/2 + 0.01;
+    group.add(top);
+
+    // X mark on top to signal "unstable"
+    const x1Geo = new THREE.BoxGeometry(c.w * 0.7, 0.05, 0.1);
+    const xMat = new THREE.MeshBasicMaterial({ color: 0xff3366 });
+    const x1 = new THREE.Mesh(x1Geo, xMat);
+    x1.position.y = c.h/2 + 0.05;
+    x1.rotation.y = Math.PI / 4;
+    group.add(x1);
+    const x2 = new THREE.Mesh(x1Geo, xMat);
+    x2.position.y = c.h/2 + 0.05;
+    x2.rotation.y = -Math.PI / 4;
+    group.add(x2);
+
+    stageRoot.add(group);
+
+    const aabb = {
+      minX: c.x - c.w/2, maxX: c.x + c.w/2,
+      minY: c.y - c.h/2, maxY: c.y + c.h/2,
+      minZ: c.z - c.d/2, maxZ: c.z + c.d/2,
+      mover: null,
+      bouncer: 0,
+      crumbler: null, // back-ref filled below
+    };
+    platformsAABB.push(aabb);
+
+    const obj = {
+      group, body,
+      x: c.x, y: c.y, z: c.z,
+      w: c.w, h: c.h, d: c.d,
+      delay: c.delay != null ? c.delay : 0.7,
+      triggered: false, timer: 0, fallen: false,
+      aabb,
+    };
+    aabb.crumbler = obj;
+    crumblers.push(obj);
+  }
+}
+
+function updateCrumblers(dt) {
+  for (const c of crumblers) {
+    if (c.fallen) continue;
+    if (c.triggered) {
+      c.timer += dt;
+      // shake increases as timer counts up
+      const intensity = Math.min(1, c.timer / c.delay);
+      const shake = Math.sin(c.timer * 40) * 0.08 * intensity;
+      c.group.position.set(c.x + shake, c.y + shake * 0.5, c.z);
+      // intensify color → red
+      const flash = Math.sin(c.timer * 25) > 0 ? 0xff3366 : 0x4a2200;
+      c.body.material.emissive.setHex(flash);
+
+      if (c.timer >= c.delay) {
+        // crumble! hide and remove from collision
+        c.fallen = true;
+        c.group.visible = false;
+        const idx = platformsAABB.indexOf(c.aabb);
+        if (idx >= 0) platformsAABB.splice(idx, 1);
+        // if player was standing on it, drop them
+        if (player.standingOnMover === null && player.onGround) {
+          // could be standing on this — let physics catch up next frame
+          player.onGround = false;
+        }
+        spawnParticles(c.x, c.y, c.z, {
+          count: 18, color: COL_COIN, speedMin: 1.5, speedMax: 4, lift: -1, life: 0.7, gravity: 12,
+        });
+        sfx.land();
+      }
+    }
+  }
+}
+
+function resetCrumblers() {
+  for (const c of crumblers) {
+    if (c.fallen) {
+      c.group.visible = true;
+      // re-add to collision list
+      platformsAABB.push(c.aabb);
+    }
+    c.triggered = false;
+    c.timer = 0;
+    c.fallen = false;
+    c.group.position.set(c.x, c.y, c.z);
+    c.body.material.emissive.setHex(0x331100);
+  }
+}
+
+// ============================================================
+// WARPS — hidden secret-stage portals (Mario-style warp zones)
+// Touching a warp instantly transports the player to the target stage.
+// ============================================================
+const warps = [];        // { group, ring, x, y, z, target }
+let warpInProgress = false;
+
+function buildWarps() {
+  if (!LEVEL.warps) return;
+  for (const w of LEVEL.warps) {
+    // INVISIBLE WARP: no rendered mesh at all. The warp exists purely as a
+    // trigger zone — only discoverable by walking into the right spot.
+    // (We keep an empty group so existing references in updateWarps/checkWarps
+    // don't break, but nothing is added to it so nothing draws.)
+    const group = new THREE.Group();
+    group.position.set(w.x, w.y, w.z);
+    group.visible = false;
+    stageRoot.add(group);
+    warps.push({ group, ring: null, dia: null, x: w.x, y: w.y, z: w.z, target: w.target });
+  }
+}
+
+function updateWarps(dt) {
+  // No-op — warp is fully invisible. Collision check is in checkWarps().
+}
+
+function checkWarps() {
+  if (player.won || warpInProgress) return;
+  const pa = playerAABB(player.pos);
+  for (const w of warps) {
+    const cx = Math.max(pa.minX, Math.min(w.x, pa.maxX));
+    const cy = Math.max(pa.minY, Math.min(w.y, pa.maxY));
+    const cz = Math.max(pa.minZ, Math.min(w.z, pa.maxZ));
+    const dist = Math.hypot(w.x - cx, w.y - cy, w.z - cz);
+    if (dist < 0.6) {
+      warpToStage(w.target);
+      return;
+    }
+  }
+}
+
+function warpToStage(idx) {
+  if (warpInProgress) return;
+  warpInProgress = true;
+  // big gold flash
+  spawnParticles(player.pos.x, player.pos.y, player.pos.z, {
+    count: 60, color: 0xffd23d, speedMin: 5, speedMax: 11, lift: 4, life: 0.9, gravity: 4,
+  });
+  spawnParticles(player.pos.x, player.pos.y, player.pos.z, {
+    count: 30, color: 0xffffff, speedMin: 3, speedMax: 7, life: 0.7, gravity: 4,
+  });
+  state.shake = 0.5;
+  sfx.win();
+  // Brief pause then load secret stage
+  setTimeout(() => {
+    warpInProgress = false;
+    startGame(idx);
+  }, 350);
+}
+
+// ============================================================
+// BOSS — multi-phase guardian for the secret stage.
+// Phases shift as HP drops: more attacks, faster cycle, color change.
+// Stomp from above (player falling, AABB above boss) to deal damage.
+// Defeat reveals the goal portal (which is hidden via bossLocked).
+// ============================================================
+const boss = {
+  active: false,
+  defeated: false,
+  hp: 0, maxHp: 0,
+  homePos: new THREE.Vector3(),
+  hoverY: 0,
+  pos: new THREE.Vector3(),
+  state: 'idle',     // idle | aim | attack | recover | hurt
+  timer: 0,
+  cooldown: 1.5,
+  hurtTimer: 0,
+  bobPhase: 0,
+  group: null,
+  body: null,
+  shell: null,
+  satellites: [],    // 3 orbiting spheres
+};
+
+function buildBoss() {
+  // wipe any prior boss state
+  boss.active = false;
+  boss.defeated = false;
+  boss.group = null;
+  boss.satellites.length = 0;
+  if (!LEVEL.boss) return;
+
+  const def = LEVEL.boss;
+  boss.active = true;
+  boss.hp = def.hp;
+  boss.maxHp = def.maxHp;
+  boss.homePos.set(def.x, def.hoverY, def.z);
+  boss.hoverY = def.hoverY;
+  boss.pos.copy(boss.homePos);
+  boss.state = 'idle';
+  boss.timer = 0;
+  boss.cooldown = 2.0;
+  boss.hurtTimer = 0;
+  boss.bobPhase = 0;
+
+  const group = new THREE.Group();
+  group.position.copy(boss.homePos);
+
+  // Outer glowing shell — wireframe octahedron
+  const shellGeo = new THREE.OctahedronGeometry(2.2, 0);
+  const shellMat = new THREE.MeshBasicMaterial({
+    color: 0xff2266, wireframe: true, transparent: true, opacity: 0.6,
+  });
+  const shell = new THREE.Mesh(shellGeo, shellMat);
+  group.add(shell);
+
+  // Solid inner body — pulsing core
+  const bodyGeo = new THREE.OctahedronGeometry(1.3, 0);
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xff0033, emissive: 0x880022 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  group.add(body);
+
+  // 3 orbiting satellite spheres — visual menace
+  const satellites = [];
+  for (let i = 0; i < 3; i++) {
+    const sGeo = new THREE.SphereGeometry(0.28, 10, 8);
+    const sMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    const s = new THREE.Mesh(sGeo, sMat);
+    group.add(s);
+    satellites.push(s);
+  }
+
+  stageRoot.add(group);
+  boss.group = group;
+  boss.body = body;
+  boss.shell = shell;
+  boss.satellites = satellites;
+}
+
+function bossPhase() {
+  // Phase 1: HP 8..6 (slow single shots)
+  // Phase 2: HP 5..3 (dual shots + occasional dive)
+  // Phase 3: HP 2..1 (triple spread + always dive, enraged)
+  if (boss.hp <= 2) return 3;
+  if (boss.hp <= 5) return 2;
+  return 1;
+}
+
+function updateBoss(dt) {
+  if (!boss.active || boss.defeated || !boss.group) return;
+  const phase = bossPhase();
+
+  // Animate satellites orbiting (always)
+  const t = state.time;
+  for (let i = 0; i < boss.satellites.length; i++) {
+    const ang = t * (1.2 + phase * 0.4) + (i * Math.PI * 2 / 3);
+    const r = 2.6;
+    boss.satellites[i].position.set(
+      Math.cos(ang) * r,
+      Math.sin(ang * 0.7) * 0.6,
+      Math.sin(ang) * r,
+    );
+  }
+  boss.shell.rotation.x += dt * 0.6;
+  boss.shell.rotation.y += dt * 0.9;
+  boss.body.rotation.y -= dt * 1.2;
+
+  // Color/emissive shift per phase
+  const phaseColor = phase === 3 ? 0xff0044 : (phase === 2 ? 0xff2266 : 0xff4488);
+  const phaseEmissive = phase === 3 ? 0xcc0033 : (phase === 2 ? 0x880022 : 0x440011);
+  boss.shell.material.color.setHex(phaseColor);
+  boss.body.material.emissive.setHex(phaseEmissive);
+
+  // Hurt flash
+  if (boss.hurtTimer > 0) {
+    boss.hurtTimer -= dt;
+    boss.body.material.emissive.setHex(Math.sin(boss.hurtTimer * 40) > 0 ? 0xffffff : phaseEmissive);
+  }
+
+  // Hovering bob
+  boss.bobPhase += dt;
+  boss.pos.y = boss.hoverY + Math.sin(boss.bobPhase * 1.4) * 0.4;
+
+  // State machine
+  boss.timer += dt;
+  if (boss.state === 'idle') {
+    if (boss.cooldown > 0) {
+      boss.cooldown -= dt;
+    } else if (player.pos.y < boss.pos.y - 0.5 && !player.won) {
+      // commit to attack
+      boss.state = 'aim';
+      boss.timer = 0;
+    }
+  } else if (boss.state === 'aim') {
+    // telegraph — flash satellites
+    const flash = Math.sin(boss.timer * 30) > 0;
+    for (const s of boss.satellites) s.material.color.setHex(flash ? 0xffffff : 0xffaa00);
+    const aimDuration = phase === 3 ? 0.45 : (phase === 2 ? 0.6 : 0.8);
+    if (boss.timer >= aimDuration) {
+      bossAttack(phase);
+      // Reset satellite color
+      for (const s of boss.satellites) s.material.color.setHex(0xffaa00);
+      boss.state = 'recover';
+      boss.timer = 0;
+    }
+  } else if (boss.state === 'recover') {
+    // brief pause
+    if (boss.timer >= 0.4) {
+      boss.state = 'idle';
+      boss.cooldown = phase === 3 ? 1.0 : (phase === 2 ? 1.6 : 2.4);
+      boss.timer = 0;
+    }
+  }
+
+  // Apply position
+  boss.group.position.set(
+    boss.homePos.x + Math.sin(boss.bobPhase * 0.7) * 0.3,
+    boss.pos.y,
+    boss.homePos.z,
+  );
+}
+
+function bossAttack(phase) {
+  // shoot projectiles aimed at player (phase 1: 1 shot, 2: 3 shots spread, 3: 5 shots wider spread)
+  const shotCount = phase === 3 ? 5 : (phase === 2 ? 3 : 1);
+  const spreadDeg = phase === 3 ? 24 : (phase === 2 ? 14 : 0);
+  const projSpeed = phase === 3 ? 16 : (phase === 2 ? 13 : 11);
+  const dmg = phase === 3 ? 35 : 25;
+  const bp = boss.group.position;
+  for (let i = 0; i < shotCount; i++) {
+    const offset = shotCount === 1 ? 0 : ((i - (shotCount - 1) / 2) * (spreadDeg * Math.PI / 180));
+    const dx = player.pos.x - bp.x;
+    const dy = player.pos.y - bp.y - 0.5;
+    const dz = player.pos.z - bp.z;
+    const baseAng = Math.atan2(dx, dz);
+    const ang = baseAng + offset;
+    const horiz = Math.sqrt(dx*dx + dz*dz);
+    const totalDist = Math.sqrt(horiz*horiz + dy*dy);
+    const inv = totalDist > 0 ? 1 / totalDist : 1;
+    spawnProjectile({
+      x: bp.x, y: bp.y, z: bp.z,
+      vx: Math.sin(ang) * projSpeed,
+      vy: dy * inv * projSpeed,
+      vz: Math.cos(ang) * projSpeed,
+      color: 0xff3366,
+      damage: dmg,
+    });
+  }
+  state.shake = 0.18;
+}
+
+function checkBossStomp() {
+  if (!boss.active || boss.defeated || boss.hurtTimer > 0 || player.won) return;
+  const pa = playerAABB(player.pos);
+  const bx = boss.group.position.x, by = boss.group.position.y, bz = boss.group.position.z;
+  const r = 1.6; // boss collision radius
+  // closest point on boss sphere to player AABB center
+  const cx = Math.max(pa.minX, Math.min(bx, pa.maxX));
+  const cy = Math.max(pa.minY, Math.min(by, pa.maxY));
+  const cz = Math.max(pa.minZ, Math.min(bz, pa.maxZ));
+  const dist = Math.hypot(bx - cx, by - cy, bz - cz);
+  if (dist > r) return;
+
+  // Stomp condition: player falling AND player AABB bottom is at/above boss center
+  if (player.vel.y < -1 && pa.minY > by - 0.4) {
+    boss.hp -= 1;
+    boss.hurtTimer = 0.4;
+    state.shake = 0.3;
+    sfx.coin();  // hit sound
+    spawnParticles(bx, by, bz, {
+      count: 20, color: 0xff3366, speedMin: 3, speedMax: 7, lift: 2, life: 0.6, gravity: 4,
+    });
+    // bounce player
+    player.vel.y = 12;
+    player.jumpsLeft = 1;
+    player.iframes = 0.6;
+    if (boss.hp <= 0) defeatBoss();
+  } else {
+    // side/below contact = damage to player
+    damagePlayer(35);
+  }
+}
+
+function defeatBoss() {
+  boss.defeated = true;
+  // Big celebration
+  const bp = boss.group.position;
+  spawnParticles(bp.x, bp.y, bp.z, {
+    count: 80, color: 0xff3366, speedMin: 5, speedMax: 12, lift: 4, life: 1.2, gravity: 5,
+  });
+  spawnParticles(bp.x, bp.y, bp.z, {
+    count: 40, color: 0xffd23d, speedMin: 4, speedMax: 10, lift: 5, life: 1.4, gravity: 4,
+  });
+  spawnParticles(bp.x, bp.y, bp.z, {
+    count: 30, color: 0xffffff, speedMin: 3, speedMax: 8, life: 1.0, gravity: 4,
+  });
+  state.shake = 0.6;
+  sfx.win();
+  boss.group.visible = false;
+  showStageBanner('GUARDIAN SLAIN', 'GOAL REVEALED');
+  // Reveal goal portal
+  if (goalMesh) goalMesh.visible = true;
+  if (goalRing) goalRing.visible = true;
+  if (goalLight) goalLight.visible = true;
+}
+
+function resetBoss() {
+  // Clear projectiles too (from boss attacks)
+  if (!boss.active || !boss.group) return;
+  boss.hp = boss.maxHp;
+  boss.defeated = false;
+  boss.hurtTimer = 0;
+  boss.cooldown = 2.0;
+  boss.state = 'idle';
+  boss.timer = 0;
+  boss.group.visible = true;
+}
+
+// ============================================================
+// PICKUPS — heal orbs (cyan) and shield orbs (magenta)
+// Heal: restores HP to full. Shield: 5 seconds of invulnerability.
+// ============================================================
+const pickups = [];
+
+function buildPickups() {
+  if (!LEVEL.pickups) return;
+  for (const p of LEVEL.pickups) {
+    const isHeal = p.type === 'heal';
+    const color = isHeal ? 0x00ffaa : 0xff66dd;
+    const group = new THREE.Group();
+    group.position.set(p.x, p.y, p.z);
+
+    // outer glow ring
+    const ringGeo = new THREE.TorusGeometry(0.55, 0.06, 10, 22);
+    const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+
+    // central orb
+    const orbGeo = new THREE.SphereGeometry(0.32, 14, 10);
+    const orbMat = new THREE.MeshBasicMaterial({ color });
+    const orb = new THREE.Mesh(orbGeo, orbMat);
+    group.add(orb);
+
+    // halo
+    const haloGeo = new THREE.SphereGeometry(0.7, 12, 8);
+    const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, fog: false });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    group.add(halo);
+
+    stageRoot.add(group);
+    pickups.push({
+      type: p.type, x: p.x, y: p.y, z: p.z,
+      group, ring, orb, taken: false, t: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+function updatePickups(dt) {
+  for (const pu of pickups) {
+    if (pu.taken) continue;
+    pu.t += dt;
+    pu.group.position.y = pu.y + Math.sin(pu.t * 2) * 0.18;
+    pu.group.rotation.y += dt * 1.2;
+    pu.ring.rotation.z += dt * 0.6;
+  }
+}
+
+function checkPickups() {
+  if (player.won) return;
+  const pa = playerAABB(player.pos);
+  for (const pu of pickups) {
+    if (pu.taken) continue;
+    const cx = Math.max(pa.minX, Math.min(pu.x, pa.maxX));
+    const cy = Math.max(pa.minY, Math.min(pu.y, pa.maxY));
+    const cz = Math.max(pa.minZ, Math.min(pu.z, pa.maxZ));
+    const dist = Math.hypot(pu.x - cx, pu.y - cy, pu.z - cz);
+    if (dist < 0.6) {
+      pu.taken = true;
+      pu.group.visible = false;
+      if (pu.type === 'heal') {
+        player.hp = player.maxHp;
+        spawnParticles(pu.x, pu.y, pu.z, {
+          count: 22, color: 0x00ffaa, speedMin: 2, speedMax: 5, lift: 2, life: 0.6, gravity: 3,
+        });
+        sfx.coin();
+      } else {
+        // shield: 5s of invuln
+        player.iframes = Math.max(player.iframes, 5.0);
+        spawnParticles(pu.x, pu.y, pu.z, {
+          count: 22, color: 0xff66dd, speedMin: 2, speedMax: 5, lift: 2, life: 0.6, gravity: 3,
+        });
+        sfx.coin();
+      }
+    }
+  }
+}
+
+// ============================================================
+// MOBS — flying dive-bombers, stomp from above to defeat
+// ============================================================
+const mobs = []; // { home, pos, state, targetPos, group, body, wingL, wingR, dead }
+
+function buildMobs() {
+  if (!LEVEL.mobs) return;
+  for (const def of LEVEL.mobs) {
+    const group = new THREE.Group();
+    const isThrower      = def.type === 'thrower';
+    const isThrowerRed   = def.type === 'thrower-red';
+
+    if (isThrower || isThrowerRed) {
+      // THROWER — turret/sentinel that fires projectiles.
+      // 'thrower-red' is the elite variant: red body, faster shoots, 50 damage.
+      const bodyColor    = isThrowerRed ? 0xff2222 : 0x00f5ff;
+      const emissive     = isThrowerRed ? 0x660000 : 0x004466;
+      const edgeColor    = isThrowerRed ? 0xff8888 : 0x88ffff;
+      const eyeColor     = isThrowerRed ? 0xffaa44 : 0xffff66;
+      const lightColor   = isThrowerRed ? 0xff2222 : 0x00f5ff;
+
+      const bodyGeo = new THREE.IcosahedronGeometry(0.55, 0);
+      const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor, emissive });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      group.add(body);
+
+      // wireframe shell
+      const edgeGeo = new THREE.EdgesGeometry(bodyGeo);
+      const edgeMat = new THREE.LineBasicMaterial({ color: edgeColor });
+      group.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+      // central glowing eye
+      const eyeGeo = new THREE.SphereGeometry(0.18, 8, 6);
+      const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor });
+      const eye = new THREE.Mesh(eyeGeo, eyeMat);
+      group.add(eye);
+
+      // light
+      const lt = new THREE.PointLight(lightColor, 0.7, 4);
+      group.add(lt);
+
+      group.position.set(def.x, def.y, def.z);
+      stageRoot.add(group);
+
+      mobs.push({
+        type: isThrowerRed ? 'thrower-red' : 'thrower',
+        home: { x: def.x, y: def.y, z: def.z },
+        pos: group.position,
+        bobPhase: Math.random() * Math.PI * 2,
+        group, body, eye,
+        range:           def.range           || (isThrowerRed ? 14 : 10),
+        shootInterval:   def.shootInterval   || (isThrowerRed ? 1.0 : 2.2),  // elite: 2.2x faster
+        projectileSpeed: def.projectileSpeed || (isThrowerRed ? 9 : 7),       // elite: faster bullets
+        damage:          def.damage          || (isThrowerRed ? 50 : 25),    // elite: double damage
+        projectileColor: isThrowerRed ? 0xff3344 : 0x00f5ff,
+        shootCooldown: 1.0 + Math.random() * 0.8,
+        dead: false,
+      });
+    } else {
+      // DIVER — magenta dive-bomber (existing behavior)
+      const bodyGeo = new THREE.OctahedronGeometry(0.5, 0);
+      const bodyMat = new THREE.MeshLambertMaterial({ color: 0xff2db5, emissive: 0x661144 });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      group.add(body);
+
+      const edgeGeo = new THREE.EdgesGeometry(bodyGeo);
+      const edgeMat = new THREE.LineBasicMaterial({ color: 0xff66dd });
+      group.add(new THREE.LineSegments(edgeGeo, edgeMat));
+
+      const wingGeo = new THREE.PlaneGeometry(1.4, 0.35);
+      const wingMat = new THREE.MeshBasicMaterial({
+        color: 0xff66dd, transparent: true, opacity: 0.6, side: THREE.DoubleSide,
+      });
+      const wingL = new THREE.Mesh(wingGeo, wingMat);
+      wingL.position.x = -0.85;
+      group.add(wingL);
+      const wingR = new THREE.Mesh(wingGeo, wingMat);
+      wingR.position.x = 0.85;
+      group.add(wingR);
+
+      const lt = new THREE.PointLight(0xff2db5, 0.8, 4);
+      lt.position.y = -0.3;
+      group.add(lt);
+
+      group.position.set(def.x, def.y, def.z);
+      stageRoot.add(group);
+
+      mobs.push({
+        type: 'diver',
+        home: { x: def.x, y: def.y, z: def.z },
+        pos: group.position,
+        state: 'idle',
+        targetPos: null,
+        diveTimer: 0,
+        alertTimer: 0,
+        bobPhase: Math.random() * Math.PI * 2,
+        group, body, wingL, wingR,
+        range: def.range || 6,
+        diveSpeed: def.diveSpeed || 5.5,
+        recoverSpeed: def.recoverSpeed || 3.5,
+        cooldown: 0,
+        dead: false,
+      });
+    }
+  }
+}
+
+function updateMobs(dt) {
+  const t = state.time;
+  for (const m of mobs) {
+    if (m.dead) continue;
+
+    // === THROWER (and red elite thrower) — stationary turret behavior ===
+    if (m.type === 'thrower' || m.type === 'thrower-red') {
+      const dx = player.pos.x - m.pos.x;
+      const dy = player.pos.y - m.pos.y;
+      const dz = player.pos.z - m.pos.z;
+      const dist = Math.hypot(dx, dy, dz);
+
+      // gentle bob
+      m.pos.set(
+        m.home.x,
+        m.home.y + Math.sin(t * 1.6 + m.bobPhase) * 0.15,
+        m.home.z
+      );
+      m.body.rotation.y += dt * 0.8;
+
+      // eye tracks player (rotate the whole group toward player horizontally)
+      m.group.lookAt(player.pos.x, m.pos.y, player.pos.z);
+
+      // shoot when player is in range and cooldown is up
+      m.shootCooldown -= dt;
+      if (m.shootCooldown <= 0 && dist < m.range && dist > 0.5 && !player.won) {
+        // pre-shot: brief eye flash (more aggressive red for red-thrower)
+        const flashColor = (m.type === 'thrower-red') ? 0xff0000 : 0xff3366;
+        const baseEyeColor = (m.type === 'thrower-red') ? 0xffaa44 : 0xffff66;
+        m.eye.material.color.setHex(flashColor);
+        setTimeout(() => { if (!m.dead) m.eye.material.color.setHex(baseEyeColor); }, 150);
+
+        // spawn projectile heading at player
+        const inv = 1 / Math.max(dist, 0.01);
+        spawnProjectile(
+          m.pos.x, m.pos.y, m.pos.z,
+          dx * inv * m.projectileSpeed,
+          dy * inv * m.projectileSpeed,
+          dz * inv * m.projectileSpeed,
+          m.damage,
+          m.projectileColor
+        );
+        m.shootCooldown = m.shootInterval;
+      }
+      continue;
+    }
+
+    // DIVER: existing dive-bomb behavior
+    // wing flap + body spin always animate
+    const flap = Math.sin(t * 16 + m.bobPhase) * 0.6;
+    m.wingL.rotation.z = flap;
+    m.wingR.rotation.z = -flap;
+    m.body.rotation.y += dt * 1.5;
+
+    if (m.state === 'idle') {
+      // gentle bob
+      m.pos.set(
+        m.home.x,
+        m.home.y + Math.sin(t * 2 + m.bobPhase) * 0.4,
+        m.home.z
+      );
+      // cooldown after a dive prevents immediate re-attack
+      if (m.cooldown > 0) {
+        m.cooldown -= dt;
+        m.body.material.emissive.setHex(0x661144);
+      } else {
+        // detect player in range AND below the mob (so it dive-BOMBS, not chases sideways)
+        const dx = player.pos.x - m.pos.x;
+        const dy = player.pos.y - m.pos.y;
+        const dz = player.pos.z - m.pos.z;
+        const dist = Math.hypot(dx, dy, dz);
+        if (dist < m.range && dy < -0.5) {
+          m.state = 'alert';
+          m.alertTimer = 0;
+        }
+      }
+    } else if (m.state === 'alert') {
+      // TELEGRAPH: flash red + hold position for 0.7s before diving — gives player time to react
+      m.alertTimer += dt;
+      const flashOn = Math.sin(m.alertTimer * 22) > 0;
+      m.body.material.emissive.setHex(flashOn ? 0xff2222 : 0x661144);
+      // tiny rise during alert (winding up)
+      m.pos.set(
+        m.home.x,
+        m.home.y + 0.3 + Math.sin(t * 8) * 0.05,
+        m.home.z
+      );
+      if (m.alertTimer > 0.7) {
+        // commit to dive — lock target on player's CURRENT position
+        m.targetPos = { x: player.pos.x, y: player.pos.y - 0.3, z: player.pos.z };
+        m.state = 'diving';
+        m.diveTimer = 0;
+        m.body.material.emissive.setHex(0xff2222);
+      }
+    } else if (m.state === 'diving') {
+      m.diveTimer += dt;
+      const dx = m.targetPos.x - m.pos.x;
+      const dy = m.targetPos.y - m.pos.y;
+      const dz = m.targetPos.z - m.pos.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d < 0.4 || m.diveTimer > 1.6 || m.pos.y < m.targetPos.y - 1.5) {
+        m.state = 'recovering';
+      } else {
+        const inv = 1 / Math.max(d, 0.01);
+        m.pos.x += dx * inv * m.diveSpeed * dt;
+        m.pos.y += dy * inv * m.diveSpeed * dt;
+        m.pos.z += dz * inv * m.diveSpeed * dt;
+        // dive trail particles (sparingly)
+        if (Math.random() < 0.3) {
+          spawnParticles(m.pos.x, m.pos.y, m.pos.z, {
+            count: 1, color: 0xff66dd, speedMin: 0.2, speedMax: 0.8,
+            lift: 0, life: 0.4, gravity: 0,
+          });
+        }
+      }
+    } else { // 'recovering'
+      const dx = m.home.x - m.pos.x;
+      const dy = m.home.y - m.pos.y;
+      const dz = m.home.z - m.pos.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d < 0.3) {
+        m.state = 'idle';
+        m.cooldown = 1.8;  // pause before mob can attack again
+        m.pos.set(m.home.x, m.home.y, m.home.z);
+      } else {
+        const inv = 1 / Math.max(d, 0.01);
+        m.pos.x += dx * inv * m.recoverSpeed * dt;
+        m.pos.y += dy * inv * m.recoverSpeed * dt;
+        m.pos.z += dz * inv * m.recoverSpeed * dt;
+      }
+    }
+  }
+}
+
+function checkMobCollisions() {
+  if (player.won) return;
+  const pa = playerAABB(player.pos);
+  for (const m of mobs) {
+    if (m.dead) continue;
+    if (m.type === 'thrower' || m.type === 'thrower-red') continue;  // throwers don't damage via contact
+    const r = 0.55;
+    if (
+      pa.minX < m.pos.x + r && pa.maxX > m.pos.x - r &&
+      pa.minY < m.pos.y + r && pa.maxY > m.pos.y - r &&
+      pa.minZ < m.pos.z + r && pa.maxZ > m.pos.z - r
+    ) {
+      // STOMP rule (Mario-style):
+      // player must be falling AND clearly above the mob
+      const stomping = player.vel.y < -1 && player.pos.y > m.pos.y + 0.3;
+      if (stomping) {
+        m.dead = true;
+        m.group.visible = false;
+        player.vel.y = JUMP_VEL * 0.85;   // small bounce off
+        player.jumpsLeft = 1;              // refresh double-jump (rewarding)
+        player.standingOnMover = null;
+        sfx.djump();
+        spawnParticles(m.pos.x, m.pos.y, m.pos.z, {
+          count: 24, color: 0xff2db5, speedMin: 2, speedMax: 6, lift: 2, life: 0.7, gravity: 8,
+        });
+      } else {
+        damagePlayer(25);
+      }
+      return;
+    }
+  }
+}
+
+function resetMobs() {
+  for (const m of mobs) {
+    m.dead = false;
+    m.targetPos = null;
+    m.pos.set(m.home.x, m.home.y, m.home.z);
+    m.group.visible = true;
+    if (m.type === 'thrower' || m.type === 'thrower-red') {
+      m.shootCooldown = 1.0 + Math.random() * 0.8;
+      if (m.eye) {
+        const baseEye = m.type === 'thrower-red' ? 0xffaa44 : 0xffff66;
+        m.eye.material.color.setHex(baseEye);
+      }
+    } else {
+      m.state = 'idle';
+      m.diveTimer = 0;
+      m.alertTimer = 0;
+      m.cooldown = 0;
+      m.body.material.emissive.setHex(0x661144);
+    }
+  }
+}
+
+// ============================================================
+// PROJECTILES (fired by thrower mobs)
+// ============================================================
+const projectiles = []; // { pos, vel, life, mesh }
+
+function spawnProjectile(x, y, z, vx, vy, vz, damage = 25, color = 0x00f5ff) {
+  // Glow color = lighter version of base color
+  const glowColor = (color === 0x00f5ff) ? 0x88ffff : 0xff8888;
+
+  const geo = new THREE.SphereGeometry(0.25, 10, 8);
+  const mat = new THREE.MeshBasicMaterial({ color });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+
+  // outer glow shell
+  const glowGeo = new THREE.SphereGeometry(0.4, 10, 8);
+  const glowMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.35 });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  mesh.add(glow);
+
+  stageRoot.add(mesh);
+  sfx.coin();  // small zap sound (reuse)
+  projectiles.push({
+    pos: new THREE.Vector3(x, y, z),
+    vel: new THREE.Vector3(vx, vy, vz),
+    life: 3.0,
+    damage,
+    color,
+    mesh,
+  });
+}
+
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    if (!p) continue;  // safety: array may have been reset mid-iteration
+
+    p.life -= dt;
+    p.pos.x += p.vel.x * dt;
+    p.pos.y += p.vel.y * dt;
+    p.pos.z += p.vel.z * dt;
+    p.mesh.position.copy(p.pos);
+    p.mesh.rotation.y += dt * 8;
+
+    // hit player?
+    if (!player.won) {
+      const pa = playerAABB(player.pos);
+      const r = 0.25;
+      if (
+        p.pos.x > pa.minX - r && p.pos.x < pa.maxX + r &&
+        p.pos.y > pa.minY - r && p.pos.y < pa.maxY + r &&
+        p.pos.z > pa.minZ - r && p.pos.z < pa.maxZ + r
+      ) {
+        damagePlayer(p.damage || 25);
+        spawnParticles(p.pos.x, p.pos.y, p.pos.z, {
+          count: 10, color: p.color || 0x00f5ff, speedMin: 2, speedMax: 4, life: 0.4, gravity: 0,
+        });
+        // If damagePlayer triggered killPlayer, resetProjectiles already cleared the array.
+        // Only despawn if this projectile is still the one at index i.
+        if (projectiles[i] === p) {
+          despawnProjectile(i);
+        } else {
+          // array was reset — abort the loop entirely
+          return;
+        }
+        continue;
+      }
+    }
+
+    // hit platform / mover / bouncer / crumbler?
+    let hitPlat = false;
+    for (const plat of platformsAABB) {
+      if (
+        p.pos.x > plat.minX && p.pos.x < plat.maxX &&
+        p.pos.y > plat.minY && p.pos.y < plat.maxY &&
+        p.pos.z > plat.minZ && p.pos.z < plat.maxZ
+      ) {
+        hitPlat = true; break;
+      }
+    }
+    if (hitPlat || p.life <= 0 || p.pos.y < FALL_DEATH_Y) {
+      spawnParticles(p.pos.x, p.pos.y, p.pos.z, {
+        count: 6, color: 0x88ffff, speedMin: 1, speedMax: 3, life: 0.3, gravity: 0,
+      });
+      despawnProjectile(i);
+    }
+  }
+}
+
+function despawnProjectile(i) {
+  const p = projectiles[i];
+  if (!p) return;  // already removed (e.g., by resetProjectiles)
+  p.mesh.traverse(child => {
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) child.material.dispose();
+  });
+  stageRoot.remove(p.mesh);
+  projectiles.splice(i, 1);
+}
+
+function resetProjectiles() {
+  for (let i = projectiles.length - 1; i >= 0; i--) despawnProjectile(i);
+}
+
+// ============================================================
+// STAGE LOAD / UNLOAD
+// ============================================================
+function unbuildStage() {
+  // Remove all children from stageRoot and dispose their geo/materials
+  while (stageRoot.children.length > 0) {
+    const obj = stageRoot.children[0];
+    stageRoot.remove(obj);
+    obj.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach(m => m.dispose());
+      }
+    });
+  }
+  platformMeshes.length = 0;
+  platformsAABB.length = 0;
+  coins.length = 0;
+  spikes.length = 0;
+  movers.length = 0;
+  bouncers.length = 0;
+  crumblers.length = 0;
+  mobs.length = 0;
+  projectiles.length = 0;
+  warps.length = 0;
+  pickups.length = 0;
+  // boss cleanup
+  boss.active = false;
+  boss.defeated = false;
+  boss.group = null;
+  boss.satellites.length = 0;
+  goalMesh = null; goalRing = null; goalLight = null;
+}
+
+function loadStage(idx) {
+  unbuildStage();
+  state.stageIdx = idx;
+  LEVEL = STAGES[idx];
+  state.totalCoins = LEVEL.coins.length;
+  buildPlatforms();
+  buildMovers();
+  buildBouncers();
+  buildCrumblers();
+  buildMobs();
+  buildCoins();
+  buildGoal();
+  buildSpikes();
+  buildWarps();
+  buildBoss();
+  buildPickups();
 }
 
 // ============================================================
@@ -752,39 +3125,68 @@ function buildGoal() {
 function buildPlayer() {
   const group = new THREE.Group();
 
-  // body (box)
-  const bodyGeo = new THREE.BoxGeometry(player.size.w, player.size.h, player.size.d);
-  const bodyMat = new THREE.MeshBasicMaterial({ color: COL_PLAYER });
+  // Resolve equipped color and shape from save (fall back to defaults)
+  const colorDef = (CUSTOMIZE_CATALOG.colors.find(c => c.id === save.equipped.color)) || CUSTOMIZE_CATALOG.colors[0];
+  const shapeId  = save.equipped.shape || 'cube';
+  const playerColor = colorDef.hex;
+
+  // body geometry depends on equipped shape
+  const w = player.size.w, h = player.size.h, d = player.size.d;
+  let bodyGeo;
+  if (shapeId === 'diamond')      bodyGeo = new THREE.OctahedronGeometry(w * 0.85, 0);
+  else if (shapeId === 'sphere')  bodyGeo = new THREE.SphereGeometry(w * 0.6, 16, 12);
+  else if (shapeId === 'pyramid') bodyGeo = new THREE.ConeGeometry(w * 0.7, h * 1.2, 4);
+  else                            bodyGeo = new THREE.BoxGeometry(w, h, d);   // cube (default)
+
+  const bodyMat = new THREE.MeshBasicMaterial({ color: playerColor });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   group.add(body);
 
-  // visor (cyan stripe)
-  const visorGeo = new THREE.BoxGeometry(player.size.w * 1.01, 0.18, player.size.d * 1.01);
-  const visorMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff });
-  const visor = new THREE.Mesh(visorGeo, visorMat);
-  visor.position.y = 0.35;
-  group.add(visor);
+  // visor (cyan stripe) — only on cube shape, looks weird on others
+  if (shapeId === 'cube') {
+    const visorGeo = new THREE.BoxGeometry(w * 1.01, 0.18, d * 1.01);
+    const visorMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff });
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.y = 0.35;
+    group.add(visor);
 
-  // face direction marker (small cyan tab on front)
-  const tabGeo = new THREE.BoxGeometry(0.18, 0.18, 0.05);
-  const tabMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff });
-  const tab = new THREE.Mesh(tabGeo, tabMat);
-  tab.position.set(0, -0.1, -player.size.d/2 - 0.02);
-  group.add(tab);
+    // face direction marker (small cyan tab on front)
+    const tabGeo = new THREE.BoxGeometry(0.18, 0.18, 0.05);
+    const tabMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff });
+    const tab = new THREE.Mesh(tabGeo, tabMat);
+    tab.position.set(0, -0.1, -d/2 - 0.02);
+    group.add(tab);
+  }
 
-  // glow halo (transparent sphere around player)
+  // glow halo (transparent sphere around player) — uses equipped color
   const haloGeo = new THREE.SphereGeometry(1.2, 16, 12);
-  const haloMat = new THREE.MeshBasicMaterial({ color: COL_PLAYER, transparent: true, opacity: 0.12, fog: false });
+  const haloMat = new THREE.MeshBasicMaterial({ color: playerColor, transparent: true, opacity: 0.12, fog: false });
   const halo = new THREE.Mesh(haloGeo, haloMat);
   group.add(halo);
 
-  // point light for player
-  const pl = new THREE.PointLight(COL_PLAYER, 1.5, 8);
+  // point light for player (uses equipped color)
+  const pl = new THREE.PointLight(playerColor, 1.5, 8);
   pl.position.set(0, 0.5, 0);
   group.add(pl);
 
   scene.add(group);
   player.mesh = group;
+}
+
+function rebuildPlayerMesh() {
+  // Disposes the existing player mesh and recreates it with current equipped
+  // color/shape from save. Call this any time the user changes their cosmetic
+  // selection so the visual updates immediately.
+  if (player.mesh) {
+    scene.remove(player.mesh);
+    player.mesh.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+    player.mesh = null;
+  }
+  buildPlayer();
+  if (player.mesh) player.mesh.position.copy(player.pos);
 }
 
 // ============================================================
@@ -869,10 +3271,27 @@ function moveAxis(axis, delta) {
           player.vel.y = 0;
         } else {
           player.pos.y = plat.maxY + player.size.h/2 + 0.001;
-          if (!player.onGround) sfx.land();
-          player.vel.y = 0;
-          player.onGround = true;
-          player.jumpsLeft = 1; // one mid-air jump available after landing
+          if (plat.bouncer) {
+            // BOUNCER: launch upward instead of stopping
+            player.vel.y = plat.bouncer;
+            player.onGround = false;
+            player.jumpsLeft = 1; // refresh double jump
+            sfx.djump();
+            spawnParticles(player.pos.x, player.pos.y - player.size.h/2, player.pos.z, {
+              count: 14, color: 0x00f5ff, speedMin: 2, speedMax: 5, lift: 4, life: 0.5, gravity: 4,
+            });
+            player.standingOnMover = null;
+          } else {
+            if (!player.onGround) sfx.land();
+            player.vel.y = 0;
+            player.onGround = true;
+            player.jumpsLeft = 1;
+            player.standingOnMover = plat.mover || null;
+            // Trigger crumbler on landing
+            if (plat.crumbler && !plat.crumbler.triggered) {
+              plat.crumbler.triggered = true;
+            }
+          }
         }
       } else if (axis === 'z') {
         if (delta > 0) player.pos.z = plat.minZ - player.size.d/2 - 0.001;
@@ -912,6 +3331,7 @@ function setKey(e, down) {
   else if (k === 'x' || k === '-' || k === '_') input.camZoomOut = down;
   else if (down && k === 'c') cyclePreset(1);
   else if (down && k === 'v') cyclePreset(-1);
+  else if (down && k === 'n') doAction('force-win');
   else if ([' ','spacebar'].includes(k)) {
     if (down && !input.jumpDown) input.jumpPressed = true;
     input.jumpDown = down;
@@ -926,14 +3346,15 @@ function setKey(e, down) {
 window.addEventListener('keydown', e => setKey(e, true));
 window.addEventListener('keyup',   e => setKey(e, false));
 
-// Mouse drag to rotate camera (desktop) - X for yaw, Y for pitch
+// Mouse drag on canvas (works when cam-area is hidden, e.g. on desktop without touch)
 let mouseDown = false, mouseLastX = 0, mouseLastY = 0;
 canvas.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'mouse' && state.scene === 'playing') {
-    mouseDown = true; mouseLastX = e.clientX; mouseLastY = e.clientY;
-  }
+  if (state.scene !== 'playing') return;
+  mouseDown = true; mouseLastX = e.clientX; mouseLastY = e.clientY;
+  try { canvas.setPointerCapture(e.pointerId); } catch(err) {}
 });
 window.addEventListener('pointerup',   () => { mouseDown = false; });
+window.addEventListener('pointercancel', () => { mouseDown = false; });
 window.addEventListener('pointermove', e => {
   if (mouseDown) {
     const dx = e.clientX - mouseLastX;
@@ -1032,74 +3453,83 @@ function bindTouchBtn(id, key) {
 bindTouchBtn('btn-jump', 'jump');
 bindTouchBtn('btn-view', 'view');
 
-// Cam-area drag (touch): horizontal = yaw, vertical = pitch, two-finger pinch = zoom
+// Cam-area drag (pointer events: works for mouse, touch, pen). One-pointer = rotate, two-pointer = pinch zoom.
 const camArea = document.getElementById('cam-area');
-const camTouches = new Map(); // id -> {x, y}
+const camPointers = new Map(); // pointerId -> {x, y}
 
-camArea.addEventListener('touchstart', e => {
-  for (const t of e.changedTouches) {
-    camTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
-  }
+camArea.addEventListener('pointerdown', e => {
+  if (state.scene !== 'playing') return;
+  camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { camArea.setPointerCapture(e.pointerId); } catch(err) {}
   e.preventDefault();
-}, { passive: false });
+});
 
-camArea.addEventListener('touchmove', e => {
-  if (camTouches.size === 1) {
-    // single-finger drag = rotate
-    const t = e.changedTouches[0];
-    const prev = camTouches.get(t.identifier);
-    if (prev) {
-      const dx = t.clientX - prev.x;
-      const dy = t.clientY - prev.y;
-      cam.yawTarget   -= dx * 0.020;
-      cam.pitchTarget  = clamp(cam.pitchTarget + dy * 0.020, CAM_PITCH_MIN, CAM_PITCH_MAX);
-      camTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
-    }
-  } else if (camTouches.size >= 2) {
-    // two-finger pinch = zoom
-    const ids = [...camTouches.keys()];
-    const prevA = camTouches.get(ids[0]);
-    const prevB = camTouches.get(ids[1]);
-    let curA = null, curB = null;
-    for (const t of e.touches) {
-      if (t.identifier === ids[0]) curA = { x: t.clientX, y: t.clientY };
-      if (t.identifier === ids[1]) curB = { x: t.clientX, y: t.clientY };
-    }
-    if (prevA && prevB && curA && curB) {
-      const prevDist = Math.hypot(prevA.x - prevB.x, prevA.y - prevB.y);
-      const curDist  = Math.hypot(curA.x  - curB.x,  curA.y  - curB.y);
-      const delta = (prevDist - curDist) * 0.04;
-      cam.distanceTarget = clamp(cam.distanceTarget + delta, CAM_DIST_MIN, CAM_DIST_MAX);
-      camTouches.set(ids[0], curA);
-      camTouches.set(ids[1], curB);
-    }
+camArea.addEventListener('pointermove', e => {
+  const prev = camPointers.get(e.pointerId);
+  if (!prev) return;
+  if (camPointers.size === 1) {
+    // single pointer = rotate
+    const dx = e.clientX - prev.x;
+    const dy = e.clientY - prev.y;
+    cam.yawTarget   -= dx * 0.012;
+    cam.pitchTarget  = clamp(cam.pitchTarget + dy * 0.012, CAM_PITCH_MIN, CAM_PITCH_MAX);
+  } else if (camPointers.size >= 2) {
+    // two pointers = pinch zoom
+    const ids = [...camPointers.keys()];
+    if (e.pointerId !== ids[0] && e.pointerId !== ids[1]) return;
+    const otherId = e.pointerId === ids[0] ? ids[1] : ids[0];
+    const other = camPointers.get(otherId);
+    if (!other) return;
+    const newDist = Math.hypot(e.clientX - other.x, e.clientY - other.y);
+    const oldDist = Math.hypot(prev.x   - other.x, prev.y   - other.y);
+    cam.distanceTarget = clamp(cam.distanceTarget + (oldDist - newDist) * 0.04, CAM_DIST_MIN, CAM_DIST_MAX);
   }
+  camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   e.preventDefault();
-}, { passive: false });
+});
 
-function endCamTouch(e) {
-  for (const t of e.changedTouches) camTouches.delete(t.identifier);
-}
-camArea.addEventListener('touchend',    endCamTouch);
-camArea.addEventListener('touchcancel', endCamTouch);
+function endCamPointer(e) { camPointers.delete(e.pointerId); }
+camArea.addEventListener('pointerup',     endCamPointer);
+camArea.addEventListener('pointercancel', endCamPointer);
+camArea.addEventListener('pointerleave',  endCamPointer);
 
 // Menu actions
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   unlockAudio(); sfx.click();
-  doAction(el.dataset.action);
+  doAction(el.dataset.action, el.dataset);
 });
 
-function doAction(action) {
+function doAction(action, data) {
+  // Cancel any auto-advance countdown if running
+  if (winCountdownTimer) { clearTimeout(winCountdownTimer); winCountdownTimer = null; }
   switch (action) {
-    case 'play':    startGame(); break;
-    case 'how':     showScreen('how'); state.scene = 'how'; break;
-    case 'title':   showScreen('title'); state.scene = 'title'; break;
-    case 'reset':   resetSave(); break;
-    case 'resume':  resumeGame(); break;
-    case 'restart': startGame(); break;
-    case 'quit':    state.scene = 'title'; showScreen('title'); break;
+    case 'play':       startGame(0); break;
+    case 'select':     state.scene = 'select'; buildStageGrid(); showScreen('select'); break;
+    case 'pick-stage': startGame(parseInt(data.idx, 10)); break;
+    case 'customize':  state.scene = 'customize'; customizeTab = 'colors'; buildCustomizeGrid(); showScreen('customize'); break;
+    case 'customize-tab':  customizeTab = data.tab; buildCustomizeGrid(); break;
+    case 'customize-pick': customizePick(data.tab, data.id); break;
+    case 'force-win':
+      // Manual override: force win the current stage (works from gameplay only)
+      if (state.scene === 'playing' && !player.won) winGame();
+      break;
+    case 'next-stage': {
+      // skip past any secret stages
+      let next = state.stageIdx + 1;
+      while (next < STAGES.length && STAGES[next].secret) next++;
+      if (next < STAGES.length) startGame(next);
+      else { state.scene = 'title'; showScreen('title'); stopMusic(); }
+      break;
+    }
+    case 'how':        showScreen('how'); state.scene = 'how'; break;
+    case 'title':      showScreen('title'); state.scene = 'title'; stopMusic(); break;
+    case 'reset':      resetSave(); break;
+    case 'resume':     resumeGame(); break;
+    case 'pause':      pauseGame(); break;
+    case 'restart':    startGame(state.stageIdx); break;
+    case 'quit':       state.scene = 'title'; showScreen('title'); stopMusic(); break;
   }
 }
 
@@ -1107,12 +3537,153 @@ function doAction(action) {
 // HUD / UI
 // ============================================================
 const screens = {
-  title: document.getElementById('screen-title'),
-  how:   document.getElementById('screen-how'),
-  pause: document.getElementById('screen-pause'),
-  win:   document.getElementById('screen-win'),
+  title:     document.getElementById('screen-title'),
+  how:       document.getElementById('screen-how'),
+  select:    document.getElementById('screen-select'),
+  customize: document.getElementById('screen-customize'),
+  pause:     document.getElementById('screen-pause'),
+  win:       document.getElementById('screen-win'),
 };
 const hud = document.getElementById('hud');
+
+function buildStageGrid() {
+  const grid = document.getElementById('stage-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < STAGES.length; i++) {
+    if (STAGES[i].secret) continue;  // hidden — not shown in selector
+    const locked = i + 1 > save.unlocked;
+    const card = document.createElement('div');
+    card.className = 'stage-card' + (locked ? ' locked' : '');
+    if (!locked) {
+      card.dataset.action = 'pick-stage';
+      card.dataset.idx = i;
+    }
+    const bt = save.bestTime[i];
+    const bc = save.bestCoins[i];
+    const total = STAGES[i].coins.length;
+    card.innerHTML = `
+      <div class="num">${String(i+1).padStart(2,'0')}</div>
+      <div class="nm">${locked ? '— LOCKED —' : STAGES[i].name}</div>
+      <div class="desc">${locked ? 'BEAT PREVIOUS STAGE' : STAGES[i].description}</div>
+      <div class="stat ${bt == null ? 'dim' : ''}">⏱ ${bt != null ? bt.toFixed(2) + 's' : '—'}</div>
+      <div class="stat ${bc == null ? 'dim' : ''}">◆ ${bc != null ? bc + '/' + total : '—/' + total}</div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+// ============================================================
+// CUSTOMIZE SCREEN
+// ============================================================
+let customizeTab = 'colors';   // current tab
+let customizeMsgTimer = null;
+
+function showCustomizeMsg(msg, color = '#ff2db5') {
+  const el = document.getElementById('customize-msg');
+  el.style.color = color;
+  el.textContent = msg;
+  if (customizeMsgTimer) clearTimeout(customizeMsgTimer);
+  customizeMsgTimer = setTimeout(() => { el.textContent = ''; }, 2200);
+}
+
+function buildCustomizeGrid() {
+  // Update coin display
+  document.getElementById('customize-coins').textContent = '◆ ' + (save.coins || 0);
+
+  // Highlight active tab
+  document.querySelectorAll('.customize-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === customizeTab);
+  });
+
+  const grid = document.getElementById('customize-grid');
+  grid.innerHTML = '';
+  const items = CUSTOMIZE_CATALOG[customizeTab] || [];
+
+  for (const it of items) {
+    const isUnlocked = save.unlocks[customizeTab].includes(it.id);
+    const isEquipped = customizeTab === 'stats'
+      ? save.equipped.stats.includes(it.id)
+      : save.equipped[customizeTab.slice(0,-1)] === it.id;  // 'colors' -> 'color'
+    const canAfford = (save.coins || 0) >= it.cost;
+
+    const card = document.createElement('div');
+    card.className = 'custom-card'
+      + (isUnlocked ? '' : ' locked')
+      + (!isUnlocked && canAfford ? ' affordable' : '')
+      + (isEquipped ? ' equipped' : '');
+    card.dataset.action = 'customize-pick';
+    card.dataset.tab = customizeTab;
+    card.dataset.id = it.id;
+
+    let inner = '';
+    // visual swatch — different per tab
+    if (customizeTab === 'colors') {
+      const c = '#' + it.hex.toString(16).padStart(6, '0');
+      inner += `<div class="swatch" style="background:${c};box-shadow:0 0 12px ${c}"></div>`;
+    } else if (customizeTab === 'shapes') {
+      // simple ascii icon per shape
+      const icons = { cube: '■', diamond: '◆', sphere: '●', pyramid: '▲' };
+      inner += `<div class="swatch" style="background:transparent;border:none;font-size:48px;color:#ff2db5;line-height:56px">${icons[it.id] || '?'}</div>`;
+    } else { // stats
+      inner += `<div class="swatch" style="background:transparent;border:none;font-size:36px;color:#ffd23d;line-height:56px">★</div>`;
+    }
+
+    inner += `<div class="nm">${it.name}</div>`;
+    if (it.desc) inner += `<div class="desc">${it.desc}</div>`;
+
+    if (isEquipped) {
+      inner += `<div class="cost">✓ EQUIPPED</div>`;
+    } else if (isUnlocked) {
+      inner += `<div class="cost" style="color:#fff">TAP TO EQUIP</div>`;
+    } else {
+      inner += `<div class="cost">◆ ${it.cost}</div>`;
+    }
+    card.innerHTML = inner;
+    grid.appendChild(card);
+  }
+}
+
+async function customizePick(tab, id) {
+  const items = CUSTOMIZE_CATALOG[tab] || [];
+  const it = items.find(x => x.id === id);
+  if (!it) return;
+  const isUnlocked = save.unlocks[tab].includes(id);
+
+  if (!isUnlocked) {
+    // Try to buy
+    if ((save.coins || 0) < it.cost) {
+      showCustomizeMsg('NOT ENOUGH COINS — KEEP PLAYING', '#ff2db5');
+      return;
+    }
+    save.coins -= it.cost;
+    save.unlocks[tab].push(id);
+    sfx.coin();
+    showCustomizeMsg(`UNLOCKED: ${it.name}`, '#00f5ff');
+  } else {
+    // Equip / toggle
+    if (tab === 'stats') {
+      const arr = save.equipped.stats;
+      const idx = arr.indexOf(id);
+      if (idx >= 0) {
+        arr.splice(idx, 1);
+        showCustomizeMsg(`${it.name} OFF`, '#aaa');
+      } else {
+        arr.push(id);
+        showCustomizeMsg(`${it.name} ON`, '#00f5ff');
+      }
+    } else {
+      const key = tab.slice(0, -1);   // 'colors' -> 'color'
+      if (save.equipped[key] === id) return;  // already equipped
+      save.equipped[key] = id;
+      sfx.click();
+      showCustomizeMsg(`EQUIPPED: ${it.name}`, '#00f5ff');
+      // Rebuild the actual player mesh so the new appearance shows up next stage.
+      rebuildPlayerMesh();
+    }
+  }
+  await persistSave();
+  buildCustomizeGrid();
+}
 
 function showScreen(name) {
   for (const k in screens) screens[k].classList.add('hidden');
@@ -1133,11 +3704,14 @@ function updateHUD() {
   document.getElementById('hud-coin').textContent = state.coinsCollected;
   document.getElementById('hud-coin-total').textContent = state.totalCoins;
   document.getElementById('hud-time').textContent = state.time.toFixed(1);
+  document.getElementById('hud-stage').textContent = (state.stageIdx+1) + '· ' + LEVEL.name;
+  document.getElementById('hud-hp').textContent = Math.max(0, Math.round(player.hp));
+  document.getElementById('hud-hp-wrap').classList.toggle('low', player.hp <= 25);
   updateBestHUD();
 }
 function updateBestHUD() {
-  document.getElementById('hud-best').textContent =
-    save.bestTime != null ? save.bestTime.toFixed(2) + 's' : '—';
+  const bt = save.bestTime[state.stageIdx];
+  document.getElementById('hud-best').textContent = bt != null ? bt.toFixed(2) + 's' : '—';
 }
 
 // ============================================================
@@ -1147,12 +3721,19 @@ function resetPlayer() {
   player.pos.set(LEVEL.spawn.x, LEVEL.spawn.y, LEVEL.spawn.z);
   player.vel.set(0, 0, 0);
   player.onGround = false;
-  player.jumpsLeft = 2;
+  player.jumpsLeft = (save.equipped.stats || []).includes('tjump') ? 3 : 2;
   player.coyote = 0;
   player.jumpBuffer = 0;
   player.facing = Math.PI; // facing -Z (toward goal)
   player.won = false;
   player.trail = [];
+  player.standingOnMover = null;
+  // Apply equipped 'TOUGH BODY' stat: +50 max HP
+  player.maxHp = (save.equipped.stats || []).includes('hp') ? 150 : 100;
+  player.hp = player.maxHp;
+  player.iframes = 0;
+  player.shouldDie = false;
+  if (player.mesh) player.mesh.visible = true;
   cam.yaw = 0; cam.yawTarget = 0;
   // place camera initially behind player using current preset
   const horizDist = cam.distance * Math.cos(cam.pitch);
@@ -1168,30 +3749,49 @@ function resetCoins() {
   state.coinsCollected = 0;
 }
 
-function startGame() {
+function startGame(stageIdx) {
   unlockAudio();
+  if (stageIdx == null) stageIdx = state.stageIdx || 0;
+  loadStage(stageIdx);
   resetPlayer();
   resetCoins();
   state.time = 0;
   state.scene = 'playing';
   showScreen(null);
+  updateBestHUD();
+  showStageBanner(LEVEL.name, stageIdx + 1);
+  startMusic(stageIdx);
+}
+
+function showStageBanner(name, num) {
+  const el = document.getElementById('stage-banner');
+  el.innerHTML = `${name}<small>STAGE ${num}</small>`;
+  el.classList.remove('show');
+  void el.offsetWidth; // force reflow to restart animation
+  el.classList.add('show');
 }
 
 function pauseGame() {
   if (state.scene !== 'playing') return;
   state.scene = 'paused';
   showScreen('pause');
+  duckMusic();
 }
 function resumeGame() {
   if (state.scene !== 'paused') return;
   state.scene = 'playing';
   showScreen(null);
+  unduckMusic();
 }
+
+let winCountdownTimer = null;
 
 async function winGame() {
   if (player.won) return;
   player.won = true;
   sfx.win();
+  stopMusic(0.6);
+  console.log('[winGame] fired for stage', state.stageIdx + 1);
   spawnParticles(LEVEL.goal.x, LEVEL.goal.y, LEVEL.goal.z, {
     count: 40, color: COL_GOAL, speedMin: 4, speedMax: 9, lift: 4, life: 1.2, gravity: 4,
   });
@@ -1199,40 +3799,131 @@ async function winGame() {
     count: 20, color: 0xffffff, speedMin: 3, speedMax: 7, life: 0.9, gravity: 4,
   });
 
-  // update save
+  const idx = state.stageIdx;
+  const prevBest = save.bestTime[idx];
+  const prevBestC = save.bestCoins[idx] || 0;
   let newBestTime = false, newBestCoins = false;
-  if (save.bestTime == null || state.time < save.bestTime) {
-    save.bestTime = state.time;
+
+  if (prevBest == null || state.time < prevBest) {
+    save.bestTime[idx] = state.time;
     newBestTime = true;
   }
-  if (state.coinsCollected > save.bestCoins) {
-    save.bestCoins = state.coinsCollected;
+  if (state.coinsCollected > prevBestC) {
+    save.bestCoins[idx] = state.coinsCollected;
     newBestCoins = true;
+  }
+  // "Last stage" for progression purposes excludes secret stages.
+  // (e.g. stage 8 is the final regular stage even if a secret stage 9 exists.)
+  const isLast = STAGES.slice(idx + 1).every(s => s.secret);
+  if (!isLast && save.unlocked < idx + 2) {
+    save.unlocked = idx + 2;
   }
   await persistSave();
 
+  // ====================================================================
+  // For non-final stages: skip the win screen entirely. Show a banner
+  // overlay for 1.8s then auto-advance to next stage. No button to miss.
+  // ====================================================================
+  if (!isLast) {
+    console.log('[winGame] auto-advancing to stage', idx + 2, '(' + STAGES[idx+1].name + ')');
+    showWinBanner(idx, newBestTime, newBestCoins);
+    winCountdownTimer = setTimeout(() => {
+      console.log('[winGame] loading stage', idx + 2);
+      startGame(idx + 1);
+    }, 1800);
+    return;
+  }
+
+  // ====================================================================
+  // Final stage cleared — show full win screen with stats.
+  // ====================================================================
   setTimeout(() => {
-    state.scene = 'win';
     const lines = [];
+    lines.push(`<div style="color:#00f5ff;letter-spacing:0.2em;margin-bottom:8px">${LEVEL.name}</div>`);
     lines.push(`TIME&nbsp;&nbsp;<span style="color:#00f5ff">${state.time.toFixed(2)}s</span>${newBestTime ? ' <span style="color:#ffd23d">NEW BEST!</span>' : ''}`);
     lines.push(`COINS&nbsp;<span style="color:#ffd23d">${state.coinsCollected}/${state.totalCoins}</span>${newBestCoins ? ' <span style="color:#ffd23d">NEW BEST!</span>' : ''}`);
-    if (save.bestTime != null && !newBestTime) lines.push(`<span style="color:#888">BEST&nbsp;&nbsp;${save.bestTime.toFixed(2)}s</span>`);
-    document.getElementById('win-stats').innerHTML = lines.join('<br>');
+    if (save.bestTime[idx] != null && !newBestTime) lines.push(`<span style="color:#888">BEST&nbsp;&nbsp;${save.bestTime[idx].toFixed(2)}s</span>`);
+    if (STAGES[idx].secret) {
+      // Secret stage cleared — different celebration text, doesn't claim "all done"
+      lines.push(`<br><span style="color:#ffd23d;font-size:1.3em;letter-spacing:0.25em">★ SECRET FOUND ★</span>`);
+      document.getElementById('win-stats').innerHTML = lines.join('<br>');
+      document.getElementById('win-title').textContent = 'SECRET COMPLETE';
+    } else {
+      lines.push(`<br><span style="color:#ffd23d;font-size:1.4em;letter-spacing:0.3em">★ ALL STAGES CLEARED ★</span>`);
+      document.getElementById('win-stats').innerHTML = lines.join('<br>');
+      document.getElementById('win-title').textContent = 'ALL CLEAR';
+    }
+    document.getElementById('btn-next-stage').style.display = 'none';
+    state.scene = 'win';
     showScreen('win');
   }, 900);
 }
 
+// Show a quick banner over the gameplay during stage transition
+function showWinBanner(idx, newBestTime, newBestCoins) {
+  const el = document.getElementById('stage-banner');
+  const nextName = STAGES[idx + 1].name;
+  const timeStr = state.time.toFixed(2) + 's' + (newBestTime ? ' ★' : '');
+  const coinStr = state.coinsCollected + '/' + state.totalCoins + (newBestCoins ? ' ★' : '');
+  el.innerHTML = `STAGE CLEAR<small>${timeStr} &nbsp;·&nbsp; ◆ ${coinStr}<br><span style="color:#ff2db5">▶ NEXT: ${nextName}</span></small>`;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
 function killPlayer() {
-  // respawn at start, keep coins, keep time
+  if (state.scene === 'restarting') return;  // already pending
+
+  const inSecret = !!(LEVEL && LEVEL.secret);
+
+  // death visuals (always)
   spawnParticles(player.pos.x, player.pos.y, player.pos.z, {
-    count: 30, color: COL_PLAYER, speedMin: 3, speedMax: 7, lift: 3, life: 0.7, gravity: 6,
+    count: inSecret ? 36 : 30, color: COL_PLAYER, speedMin: 3, speedMax: 7, lift: 3, life: 0.7, gravity: 6,
   });
   sfx.death();
-  state.shake = 0.3;
-  player.pos.set(LEVEL.spawn.x, LEVEL.spawn.y, LEVEL.spawn.z);
+  state.shake = inSecret ? 0.4 : 0.3;
   player.vel.set(0, 0, 0);
-  player.onGround = false;
-  player.jumpsLeft = 2;
+
+  if (inSecret) {
+    // SECRET STAGE death → back to STAGE 1 with a brief death pause.
+    if (player.mesh) player.mesh.visible = false;
+    state.scene = 'restarting';
+    state.restartAt = performance.now() + 500;
+    stopMusic(0.4);
+  } else {
+    // Normal stages: respawn at current stage's spawn (original behavior).
+    player.pos.set(LEVEL.spawn.x, LEVEL.spawn.y, LEVEL.spawn.z);
+    player.onGround = false;
+    player.jumpsLeft = 2;
+    player.standingOnMover = null;
+    player.hp = player.maxHp;
+    player.iframes = 0;
+    player.shouldDie = false;
+    if (player.mesh) player.mesh.visible = true;
+    resetCrumblers();
+    resetMobs();
+    resetProjectiles();
+    resetBoss();
+  }
+}
+
+// Damage the player (used by mob contact, projectiles).
+// Spikes/falls still call killPlayer() directly for instant kill.
+function damagePlayer(amount) {
+  if (player.iframes > 0 || player.won || player.hp <= 0) return;
+  player.hp -= amount;
+  player.iframes = 1.0;        // 1 second of invulnerability + flash
+  state.shake = 0.18;
+  sfx.death();                 // damage sound (reuse)
+  spawnParticles(player.pos.x, player.pos.y, player.pos.z, {
+    count: 14, color: 0xff2222, speedMin: 2, speedMax: 5, lift: 1, life: 0.45, gravity: 6,
+  });
+  if (player.hp <= 0) {
+    player.hp = 0;
+    // Deferred kill — actual respawn happens at end of update() so we never
+    // mutate arrays (projectiles/etc) that are mid-iteration.
+    player.shouldDie = true;
+  }
 }
 
 // ============================================================
@@ -1242,10 +3933,27 @@ function update(dt) {
   if (state.scene !== 'playing' || player.won) {
     // still rotate goal/coins for visual life
     rotateAmbient(dt);
+    // also keep movers/bouncers animating in case of pause/win for visual life
+    updateMovers(dt);
+    updateBouncers(dt);
     return;
   }
 
   state.time += dt;
+
+  // Update moving platforms FIRST (before player physics) so AABBs are current
+  updateMovers(dt);
+  updateBouncers(dt);
+  updateCrumblers(dt);
+  updateMobs(dt);
+
+  // Mover stickiness: if player was standing on a mover last frame, carry them along
+  if (player.onGround && player.standingOnMover) {
+    const m = player.standingOnMover;
+    player.pos.x += m.x - m.prevX;
+    player.pos.y += m.y - m.prevY;
+    player.pos.z += m.z - m.prevZ;
+  }
 
   // Camera yaw + pitch + zoom
   if (input.camLeft)    cam.yawTarget   += 1.6 * dt;
@@ -1276,9 +3984,10 @@ function update(dt) {
   const moveLen = Math.hypot(dx, dz);
   if (moveLen > 1) { dx /= moveLen; dz /= moveLen; }
 
-  // accelerate toward target velocity
-  const targetVx = dx * MOVE_SPEED;
-  const targetVz = dz * MOVE_SPEED;
+  // accelerate toward target velocity (with optional sprint boost)
+  const speedBoost = (save.equipped.stats || []).includes('speed') ? 1.15 : 1.0;
+  const targetVx = dx * MOVE_SPEED * speedBoost;
+  const targetVz = dz * MOVE_SPEED * speedBoost;
   const accel = ACCEL * dt;
   player.vel.x += clamp(targetVx - player.vel.x, -accel, accel);
   player.vel.z += clamp(targetVz - player.vel.z, -accel, accel);
@@ -1307,11 +4016,16 @@ function update(dt) {
   if (input.jumpPressed) player.jumpBuffer = JUMP_BUFFER;
   player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
 
+  // ===== Equipped stat boosts =====
+  const stats = save.equipped.stats || [];
+  const jumpBoost  = stats.includes('jump')  ? 1.15 : 1.0;
+  const tripleJump = stats.includes('tjump');
+
   // jump
   if (player.jumpBuffer > 0) {
     if (player.onGround || player.coyote > 0) {
-      player.vel.y = JUMP_VEL;
-      player.jumpsLeft = 1;
+      player.vel.y = JUMP_VEL * jumpBoost;
+      player.jumpsLeft = tripleJump ? 2 : 1;   // air jumps remaining
       player.jumpBuffer = 0;
       player.coyote = 0;
       player.onGround = false;
@@ -1320,7 +4034,7 @@ function update(dt) {
         count: 8, color: 0x00f5ff, speedMin: 1.5, speedMax: 3.5, lift: -1, life: 0.4, gravity: 4,
       });
     } else if (player.jumpsLeft > 0) {
-      player.vel.y = DOUBLE_JUMP_VEL;
+      player.vel.y = DOUBLE_JUMP_VEL * jumpBoost;
       player.jumpsLeft--;
       player.jumpBuffer = 0;
       sfx.djump();
@@ -1346,6 +4060,27 @@ function update(dt) {
   moveAxis('z', player.vel.z * dt);
   moveAxis('y', player.vel.y * dt);
 
+  // bouncer pads — overlap-based trigger (after solid collisions)
+  checkBouncers();
+
+  // mobs — stomp from above defeats them, side/below contact kills player
+  checkMobCollisions();
+
+  // animate warps + check if player touched a hidden warp portal
+  updateWarps(dt);
+  checkWarps();
+
+  // boss — multi-phase guardian (only active in stages with a boss defined)
+  updateBoss(dt);
+  checkBossStomp();
+
+  // pickups — heal / shield orbs
+  updatePickups(dt);
+  checkPickups();
+
+  // projectiles fired by thrower mobs
+  updateProjectiles(dt);
+
   // landed effect
   if (!wasOnGround && player.onGround && player.vel.y === 0) {
     spawnParticles(player.pos.x, player.pos.y - player.size.h/2, player.pos.z, {
@@ -1358,6 +4093,14 @@ function update(dt) {
     killPlayer();
   }
 
+  // spike hazard check
+  for (const s of spikes) {
+    if (player.pos.distanceTo(s.pos) < SPIKE_RADIUS) {
+      killPlayer();
+      return;
+    }
+  }
+
   // coin pickup
   for (const c of coins) {
     if (c.taken) continue;
@@ -1365,6 +4108,10 @@ function update(dt) {
       c.taken = true;
       c.mesh.visible = false;
       state.coinsCollected++;
+      // Bank the coin into persistent currency for the customize shop.
+      save.coins = (save.coins || 0) + 1;
+      // Persist async — don't await, no need to block gameplay
+      persistSave();
       sfx.coin();
       spawnParticles(c.pos.x, c.pos.y, c.pos.z, {
         count: 12, color: COL_COIN, speedMin: 2, speedMax: 4, lift: 1, life: 0.5, gravity: 4,
@@ -1372,10 +4119,19 @@ function update(dt) {
     }
   }
 
-  // goal check
+  // goal check — player body must actually overlap the goal portal
+  // (closest point on player AABB to goal center must be within 0.5m)
+  // BOSS-LOCKED stages: goal is inert until boss is defeated.
   const g = LEVEL.goal;
-  const gd = Math.hypot(player.pos.x - g.x, player.pos.y - g.y, player.pos.z - g.z);
-  if (gd < 1.8) winGame();
+  const goalActive = !g.bossLocked || boss.defeated;
+  if (goalActive) {
+    const pa = playerAABB(player.pos);
+    const cx = Math.max(pa.minX, Math.min(g.x, pa.maxX));
+    const cy = Math.max(pa.minY, Math.min(g.y, pa.maxY));
+    const cz = Math.max(pa.minZ, Math.min(g.z, pa.maxZ));
+    const contactDist = Math.hypot(g.x - cx, g.y - cy, g.z - cz);
+    if (contactDist < 0.5) winGame();
+  }
 
   // ambient rotations
   rotateAmbient(dt);
@@ -1384,11 +4140,31 @@ function update(dt) {
   player.mesh.position.copy(player.pos);
   player.mesh.rotation.y = player.facing;
 
+  // i-frames flash (after taking damage)
+  if (player.iframes > 0) {
+    player.iframes -= dt;
+    // toggle visibility ~10x/sec for blink effect
+    player.mesh.visible = Math.floor(state.time * 12) % 2 === 0;
+    if (player.iframes <= 0) {
+      player.iframes = 0;
+      player.mesh.visible = true;
+    }
+  } else {
+    player.mesh.visible = true;
+  }
+
   // trail
   player.trail.push({ x: player.pos.x, y: player.pos.y, z: player.pos.z, life: 0.3 });
   if (player.trail.length > 14) player.trail.shift();
   for (const t of player.trail) t.life -= dt;
   player.trail = player.trail.filter(t => t.life > 0);
+
+  // DEFERRED DEATH — process at the very end so we never mutate
+  // arrays (projectiles/etc.) while they're still being iterated.
+  if (player.shouldDie) {
+    player.shouldDie = false;
+    killPlayer();
+  }
 }
 
 function rotateAmbient(dt) {
@@ -1398,6 +4174,9 @@ function rotateAmbient(dt) {
     c.mesh.rotation.y += dt * 3;
     c.mesh.rotation.x = Math.sin(c.t) * 0.2;
     c.mesh.position.y = c.pos.y + Math.sin(c.t * 0.8) * 0.18;
+  }
+  for (const s of spikes) {
+    s.mesh.rotation.y += dt * 2.5;
   }
   if (goalRing) goalRing.rotation.z += dt * 1.4;
   if (goalMesh) goalMesh.rotation.y += dt * 0.6;
@@ -1452,24 +4231,63 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  // Toggle portrait-mode class so #rotate-hint shows on touch+portrait
+  if (h > w) document.body.classList.add('portrait-mode');
+  else       document.body.classList.remove('portrait-mode');
 }
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+
+// Rotate-hint dismiss: lets user play in portrait if they really want to
+const rotateHintEl = document.getElementById('rotate-hint');
+let rotateHintDismissed = false;
+document.getElementById('rotate-hint-dismiss').addEventListener('click', () => {
+  rotateHintDismissed = true;
+  rotateHintEl.style.display = 'none';
+});
 
 // ============================================================
 // MAIN LOOP
 // ============================================================
 let lastTime = performance.now();
+let loopErrorShown = false;
 function loop(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  update(dt);
-  updateParticles(dt);
-  updateCamera(dt);
-  updateHUD();
+  // Safety net: if any update step throws, log it visibly and KEEP RUNNING.
+  // (Previously a thrown error here killed requestAnimationFrame and froze the whole game.)
+  try { update(dt); }            catch (e) { reportLoopError('update', e); }
+  try { updateParticles(dt); }   catch (e) { reportLoopError('updateParticles', e); }
+  try { updateCamera(dt); }      catch (e) { reportLoopError('updateCamera', e); }
+  try { updateHUD(); }           catch (e) { reportLoopError('updateHUD', e); }
+  try { updateMusic(dt); }       catch (e) { reportLoopError('updateMusic', e); }
 
-  renderer.render(scene, camera);
+  // Deferred restart-to-stage-1 after death (set by killPlayer).
+  if (state.scene === 'restarting' && state.restartAt && performance.now() >= state.restartAt) {
+    state.restartAt = 0;
+    try { startGame(0); } catch (e) { reportLoopError('restart', e); }
+  }
+
+  try { renderer.render(scene, camera); } catch (e) { reportLoopError('render', e); }
   requestAnimationFrame(loop);
+}
+
+function reportLoopError(stage, err) {
+  console.error('[loop error in ' + stage + ']', err);
+  if (!loopErrorShown) {
+    loopErrorShown = true;
+    // surface a single visible error so user can tell us what broke
+    let el = document.getElementById('loop-error-msg');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'loop-error-msg';
+      el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,30,30,0.95);color:#fff;padding:18px 22px;font-family:VT323,monospace;font-size:18px;z-index:99999;border:2px solid #fff;text-align:center;max-width:80vw;cursor:pointer';
+      el.onclick = () => el.remove();
+      document.body.appendChild(el);
+    }
+    el.textContent = 'Loop error in ' + stage + ': ' + (err && err.message ? err.message : String(err)) + '  (tap to dismiss)';
+  }
 }
 
 // ============================================================
@@ -1482,9 +4300,7 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 // ============================================================
 (async function init() {
   await loadSave();
-  buildPlatforms();
-  buildCoins();
-  buildGoal();
+  loadStage(0);
   buildPlayer();
   resetPlayer();
   updateBestHUD();
